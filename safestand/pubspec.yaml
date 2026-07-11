@@ -31,3 +31,4 @@ flutter:
     - assets/data/known_cases.json
     - assets/data/red_flag_rules.json
     - assets/data/gazetteer.json
+    - assets/ml/model_export.json
