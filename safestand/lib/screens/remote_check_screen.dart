@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../config.dart';
+import '../services/land_context_service.dart';
 import '../services/photo_evidence_service.dart';
 import '../services/pin_parser.dart';
 import '../services/remote_check_service.dart';
@@ -30,9 +32,14 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   final _sellerController = TextEditingController();
   final _pinController = TextEditingController();
 
+  final _landService = LandContextService();
+
   List<GazetteerPlace> _places = [];
   final List<PhotoEvidence> _photos = [];
   bool _busy = false;
+  bool _analyzing = false;
+  LandContext? _land;
+  String? _landTargetKey; // coordinates the current _land result is for
 
   @override
   void initState() {
@@ -54,6 +61,29 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
 
   GazetteerPlace? get _claimedPlace =>
       _photoService.matchPlace(_areaController.text, _places);
+
+  /// The point the AI should analyse: the seller's pin if given, else the
+  /// claimed suburb centre.
+  (double, double)? get _analysisTarget {
+    final pin = _pin;
+    if (pin != null) return pin;
+    final place = _claimedPlace;
+    if (place != null) return (place.lat, place.lon);
+    return null;
+  }
+
+  Future<void> _analyzeLand() async {
+    final target = _analysisTarget;
+    if (target == null) return;
+    setState(() => _analyzing = true);
+    final result = await _landService.analyze(target.$1, target.$2);
+    if (!mounted) return;
+    setState(() {
+      _analyzing = false;
+      _land = result;
+      _landTargetKey = '${target.$1},${target.$2}';
+    });
+  }
 
   Future<void> _addPhotos() async {
     setState(() => _busy = true);
@@ -85,6 +115,12 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
         .toList();
 
     final pin = _pin;
+    // Only feed the AI result in if it belongs to the point we're checking.
+    final target = _analysisTarget;
+    final landIsCurrent = _land != null &&
+        target != null &&
+        _landTargetKey == '${target.$1},${target.$2}';
+
     final verdict = RemoteCheckService(scorer: widget.scorer).evaluate(
       claimedArea: area,
       seller: _sellerController.text,
@@ -92,11 +128,101 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
       pinLat: pin?.$1,
       pinLon: pin?.$2,
       claimedPlace: _claimedPlace,
+      landContext: landIsCurrent ? _land : null,
     );
 
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ResultScreen(verdict: verdict, area: area),
     ));
+  }
+
+  Widget _buildLandAiSection(BuildContext context) {
+    if (!Config.hasGeminiKey) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'AI land analysis is not configured in this build. The offline '
+          'checks above still work. (Add a Gemini API key to enable an AI '
+          'reading of the satellite image.)',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
+    }
+
+    final land = _land;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _analyzing ? null : _analyzeLand,
+          icon: _analyzing
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.auto_awesome_outlined),
+          label: Text(_analyzing
+              ? 'Analysing satellite image…'
+              : land == null
+                  ? 'Analyse this location with AI'
+                  : 'Re-analyse with AI'),
+        ),
+        if (land != null) ...[
+          const SizedBox(height: 12),
+          if (!land.available)
+            Text(
+              'AI analysis could not be completed (${land.error}). '
+              'Check your internet connection and try again.',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: land.landClass == LandClass.waterOrWetland ||
+                        land.landClass == LandClass.builtUpDense
+                    ? Theme.of(context).colorScheme.errorContainer
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.auto_awesome, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text('AI reading: ${land.landClass.label}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600)),
+                      ),
+                      Text('(${land.confidence} confidence)',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                  if (land.description.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(land.description),
+                  ],
+                ],
+              ),
+            ),
+        ],
+        const SizedBox(height: 6),
+        Text(
+          'AI reads free, low-detail satellite imagery — treat it as a second '
+          'opinion to compare with what the seller told you, not as proof.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
   }
 
   @override
@@ -245,6 +371,10 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                 caption: 'Location embedded in one of the photos you added. '
                     'It should agree with the pin and the claimed area.',
               ),
+            ],
+            if (_analysisTarget != null) ...[
+              const SizedBox(height: 20),
+              _buildLandAiSection(context),
             ],
             const SizedBox(height: 24),
             FilledButton.icon(
