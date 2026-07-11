@@ -1,4 +1,5 @@
 import '../models/models.dart';
+import 'land_context_service.dart';
 import 'photo_evidence_service.dart';
 import 'risk_scorer.dart';
 
@@ -25,6 +26,8 @@ class RemoteCheckService {
   static const pinMismatchPoints = 35;
   static const photoFarFromPinPoints = 25;
   static const photoNearPinKm = 1.0;
+  static const wetlandPoints = 30;
+  static const denseBuiltUpPoints = 12;
 
   RiskVerdict evaluate({
     required String claimedArea,
@@ -33,6 +36,7 @@ class RemoteCheckService {
     double? pinLat,
     double? pinLon,
     GazetteerPlace? claimedPlace,
+    LandContext? landContext,
   }) {
     // Base: claimed area vs documented fraud patterns.
     final base = scorer.score(area: claimedArea, seller: seller);
@@ -99,6 +103,42 @@ class RemoteCheckService {
             0,
           ));
         }
+      }
+    }
+
+    // --- AI satellite land-context (online) ------------------------------
+    if (landContext != null && landContext.available) {
+      switch (landContext.landClass) {
+        case LandClass.waterOrWetland:
+          score += wetlandPoints;
+          reasons.add(VerdictReason(
+            'AI satellite check: location looks like water or wetland',
+            'The AI reading of the satellite image of this spot suggests '
+                'water or wetland. Stands on wetlands are a documented '
+                'demolition risk in Harare. ${landContext.description}',
+            4,
+          ));
+        case LandClass.builtUpDense:
+          score += denseBuiltUpPoints;
+          reasons.add(VerdictReason(
+            'AI satellite check: area is already densely built up',
+            'The AI reading of the satellite image shows dense existing '
+                'building. If you were told this is a new or vacant serviced '
+                'stand, that is a contradiction worth questioning. '
+                '${landContext.description}',
+            2,
+          ));
+        case LandClass.builtUpScattered:
+        case LandClass.bareLand:
+        case LandClass.vegetation:
+          reasons.add(VerdictReason(
+            'AI satellite check: ${landContext.landClass.label}',
+            '${landContext.description} This is context to compare against '
+                'what the seller told you — it is not by itself a red flag.',
+            0,
+          ));
+        case LandClass.unknown:
+          break;
       }
     }
 
