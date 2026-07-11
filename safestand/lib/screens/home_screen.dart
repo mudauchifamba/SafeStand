@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/case_repository.dart';
 import '../services/risk_scorer.dart';
 import 'manual_entry_screen.dart';
+import 'remote_check_screen.dart';
 import 'scan_screen.dart';
 
 /// Entry point: loads the bundled dataset once, then offers the two input
@@ -78,6 +79,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Photograph the offer letter or agreement of sale.',
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => ScanScreen(scorer: scorer),
+                  )),
+                ),
+                const SizedBox(height: 16),
+                _PathCard(
+                  icon: Icons.public,
+                  title: 'Check a stand remotely',
+                  subtitle:
+                      'Buying from abroad? Verify the seller\'s photos and '
+                      'see the claimed location from satellite.',
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => RemoteCheckScreen(scorer: scorer),
                   )),
                 ),
                 const SizedBox(height: 40),
