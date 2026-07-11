@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/fraud_classifier.dart';
 import '../services/ocr_service.dart';
 import '../services/risk_scorer.dart';
 import 'result_screen.dart';
@@ -23,6 +24,15 @@ class _ScanScreenState extends State<ScanScreen> {
   final _picker = ImagePicker();
   final _ocr = OcrService();
   final _areaController = TextEditingController();
+  FraudClassifier? _classifier;
+
+  @override
+  void initState() {
+    super.initState();
+    FraudClassifier.loadFromAssets().then((c) {
+      if (mounted) setState(() => _classifier = c);
+    });
+  }
 
   File? _image;
   String? _extractedText;
@@ -72,6 +82,7 @@ class _ScanScreenState extends State<ScanScreen> {
     final verdict = widget.scorer.score(
       area: _areaController.text,
       documentText: text,
+      modelFraudProbability: _classifier?.fraudProbability(text),
     );
 
     Navigator.of(context).push(MaterialPageRoute(

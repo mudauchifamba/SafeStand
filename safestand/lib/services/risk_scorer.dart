@@ -28,10 +28,14 @@ class RiskScorer {
   /// [area] and [seller] come from manual entry (may be empty).
   /// [documentText] is the OCR output (may be empty if the user only typed
   /// details and did not scan anything).
+  /// [modelFraudProbability] is the trained classifier's P(fraudulent) for
+  /// the document, when available. The model then carries most of the
+  /// document score and the rules act as the explainability layer.
   RiskVerdict score({
     String area = '',
     String seller = '',
     String documentText = '',
+    double? modelFraudProbability,
   }) {
     final reasons = <VerdictReason>[];
     final matchedAreas = <String>[];
@@ -73,6 +77,24 @@ class RiskScorer {
         }
       }
       if (totalWeight > 0) flagScore = firedWeight / totalWeight;
+    }
+
+    // --- Signal 3: trained classifier --------------------------------------
+    // Model decision + rule-based justification is the responsible-AI
+    // pattern here: the model carries the score, the fired rules above give
+    // the user auditable reasons.
+    if (modelFraudProbability != null && documentText.trim().isNotEmpty) {
+      final p = modelFraudProbability.clamp(0.0, 1.0);
+      flagScore = 0.6 * p + 0.4 * flagScore;
+      reasons.add(VerdictReason(
+        'AI document assessment',
+        'Our trained model, which learned from documented fraudulent and '
+            'genuine land documents, rates this document '
+            '${(p * 100).round()}% similar to known fraud patterns. The '
+            'flags listed here are the specific wording it and our rules '
+            'reacted to.',
+        p >= 0.5 ? 3 : 0,
+      ));
     }
 
     // --- Combine ----------------------------------------------------------
