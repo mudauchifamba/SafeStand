@@ -23,16 +23,15 @@ class SatelliteView extends StatelessWidget {
     this.zoom = 16,
   });
 
-  // Web-Mercator tile coordinates for the centre point.
-  (int, int) _tileXY() {
-    final n = 1 << zoom;
-    final x = ((lon + 180) / 360 * n).floor();
+  // Web-Mercator fractional tile coordinates for the centre point.
+  (double, double) _tileXYf() {
+    final n = (1 << zoom).toDouble();
+    final x = (lon + 180) / 360 * n;
     final latRad = lat * math.pi / 180;
     final y =
-        ((1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
-                2 *
-                n)
-            .floor();
+        (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
+            2 *
+            n;
     return (x.clamp(0, n - 1), y.clamp(0, n - 1));
   }
 
@@ -42,7 +41,12 @@ class SatelliteView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (cx, cy) = _tileXY();
+    final (xf, yf) = _tileXYf();
+    final cx = xf.floor();
+    final cy = yf.floor();
+    // Exact point's position within the 3x3 grid, as a 0..1 fraction.
+    final fx = (xf - (cx - 1)) / 3;
+    final fy = (yf - (cy - 1)) / 3;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +56,10 @@ class SatelliteView extends StatelessWidget {
           // 3x3 tile grid around the centre = roughly 700m x 700m at z16.
           child: AspectRatio(
             aspectRatio: 1,
-            child: GridView.count(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                GridView.count(
               crossAxisCount: 3,
               physics: const NeverScrollableScrollPhysics(),
               children: [
@@ -80,11 +87,29 @@ class SatelliteView extends StatelessWidget {
                       ),
                     ),
               ],
+                ),
+                // Crosshair marking the exact coordinate being shown.
+                Align(
+                  alignment: FractionalOffset(fx, fy),
+                  child: const IgnorePointer(
+                    child: Icon(Icons.add_circle_outline,
+                        size: 34,
+                        color: Colors.redAccent,
+                        shadows: [
+                          Shadow(color: Colors.black87, blurRadius: 4)
+                        ]),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
         const SizedBox(height: 6),
-        Text(caption, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          '$caption\nCentred on ${lat.toStringAsFixed(5)}, '
+          '${lon.toStringAsFixed(5)} (red marker).',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         Text(
           'Imagery © Esri World Imagery. Needs internet; shown for context '
           'only.',

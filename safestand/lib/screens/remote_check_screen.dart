@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/photo_evidence_service.dart';
+import '../services/pin_parser.dart';
 import '../services/remote_check_service.dart';
 import '../services/risk_scorer.dart';
 import '../widgets/satellite_view.dart';
@@ -27,6 +28,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   final _photoService = PhotoEvidenceService();
   final _areaController = TextEditingController();
   final _sellerController = TextEditingController();
+  final _pinController = TextEditingController();
 
   List<GazetteerPlace> _places = [];
   final List<PhotoEvidence> _photos = [];
@@ -44,8 +46,11 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   void dispose() {
     _areaController.dispose();
     _sellerController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
+
+  (double, double)? get _pin => PinParser.parse(_pinController.text);
 
   GazetteerPlace? get _claimedPlace =>
       _photoService.matchPlace(_areaController.text, _places);
@@ -79,10 +84,14 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
             ))
         .toList();
 
+    final pin = _pin;
     final verdict = RemoteCheckService(scorer: widget.scorer).evaluate(
       claimedArea: area,
       seller: _sellerController.text,
       photoResults: results,
+      pinLat: pin?.$1,
+      pinLon: pin?.$2,
+      claimedPlace: _claimedPlace,
     );
 
     Navigator.of(context).push(MaterialPageRoute(
@@ -123,6 +132,22 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
               decoration: const InputDecoration(
                 labelText: 'Seller / cooperative name (optional)',
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _pinController,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: 'Seller\'s location pin (optional)',
+                hintText: '-17.9123, 30.9876 or a Google Maps link',
+                helperText: PinParser.isShortLink(_pinController.text)
+                    ? 'Short links can\'t be read here — open it in Maps, '
+                        'copy the coordinates, and paste them instead.'
+                    : 'Ask the seller to share the stand\'s location pin on '
+                        'WhatsApp, then paste it here.',
+                helperMaxLines: 3,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
@@ -181,7 +206,20 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
-            if (place != null) ...[
+            if (_pin != null) ...[
+              const SizedBox(height: 20),
+              Text('Satellite view of the seller\'s pin',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              SatelliteView(
+                lat: _pin!.$1,
+                lon: _pin!.$2,
+                zoom: 17,
+                caption: 'This is the exact spot the seller pinned as your '
+                    'stand. Does it match what they described — vacant land, '
+                    'or something else?',
+              ),
+            ] else if (place != null) ...[
               const SizedBox(height: 20),
               Text('Satellite view of ${place.name}',
                   style: Theme.of(context).textTheme.titleSmall),
@@ -190,8 +228,22 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                 lat: place.lat,
                 lon: place.lon,
                 caption:
-                    'Centre of ${place.name}, ${place.city} — does what the '
-                    'seller describes match what you see?',
+                    'General view of ${place.name}, ${place.city} — the '
+                    'suburb centre, NOT the specific stand. Paste the '
+                    'seller\'s pin above to see the exact spot.',
+              ),
+            ],
+            for (final p in _photos.where((p) => p.hasGps)) ...[
+              const SizedBox(height: 20),
+              Text('Where a seller photo was really taken',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              SatelliteView(
+                lat: p.lat!,
+                lon: p.lon!,
+                zoom: 17,
+                caption: 'Location embedded in one of the photos you added. '
+                    'It should agree with the pin and the claimed area.',
               ),
             ],
             const SizedBox(height: 24),
