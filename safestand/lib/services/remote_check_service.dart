@@ -22,11 +22,17 @@ class RemoteCheckService {
   static const mismatchPoints = 40;
   static const stalePhotoPoints = 10;
   static const stalePhotoThresholdDays = 365;
+  static const pinMismatchPoints = 35;
+  static const photoFarFromPinPoints = 25;
+  static const photoNearPinKm = 1.0;
 
   RiskVerdict evaluate({
     required String claimedArea,
     String seller = '',
     required List<PhotoCheckResult> photoResults,
+    double? pinLat,
+    double? pinLon,
+    GazetteerPlace? claimedPlace,
   }) {
     // Base: claimed area vs documented fraud patterns.
     final base = scorer.score(area: claimedArea, seller: seller);
@@ -39,6 +45,62 @@ class RemoteCheckService {
     var anyMismatch = false;
     var anyMatch = false;
     var anyNoGps = false;
+
+    // --- Seller's pin vs claimed area -----------------------------------
+    final hasPin = pinLat != null && pinLon != null;
+    if (hasPin && claimedPlace != null) {
+      final pinDist = PhotoEvidenceService.distanceKm(
+          pinLat, pinLon, claimedPlace.lat, claimedPlace.lon);
+      if (pinDist > claimedPlace.radiusKm) {
+        anyMismatch = true;
+        score += pinMismatchPoints;
+        reasons.add(VerdictReason(
+          'Seller\'s pin is outside the claimed area',
+          'The location pin the seller shared is '
+              '${pinDist.toStringAsFixed(1)} km from ${claimedPlace.name}. '
+              'A stand advertised in one suburb but pinned in another is a '
+              'serious warning sign.',
+          4,
+        ));
+      } else {
+        reasons.add(VerdictReason(
+          'Seller\'s pin falls inside the claimed area',
+          'The pin is consistent with ${claimedPlace.name}. This alone does '
+              'not prove the seller has any right to that land — inspect the '
+              'satellite view and verify ownership independently.',
+          0,
+        ));
+      }
+    }
+
+    // --- Photos vs seller's pin ------------------------------------------
+    if (hasPin) {
+      for (final r in photoResults) {
+        if (!r.evidence.hasGps) continue;
+        final d = PhotoEvidenceService.distanceKm(
+            r.evidence.lat!, r.evidence.lon!, pinLat, pinLon);
+        if (d > photoNearPinKm) {
+          anyMismatch = true;
+          score += photoFarFromPinPoints;
+          reasons.add(VerdictReason(
+            'Photo was not taken at the pinned stand',
+            'A photo presented as the stand was taken '
+                '${d.toStringAsFixed(1)} km from the location the seller '
+                'pinned. The photos may show a different piece of land.',
+            3,
+          ));
+        } else {
+          reasons.add(VerdictReason(
+            'Photo was taken at the pinned location',
+            'The photo\'s embedded location agrees with the seller\'s pin '
+                '(within ${photoNearPinKm.toStringAsFixed(0)} km). Remember '
+                'this data is fakeable — it removes a contradiction, nothing '
+                'more.',
+            0,
+          ));
+        }
+      }
+    }
 
     for (final r in photoResults) {
       switch (r.finding) {
