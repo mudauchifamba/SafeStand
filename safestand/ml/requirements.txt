@@ -1,0 +1,12 @@
+# SafeStand ML pipeline — locked dependency manifest
+# Python 3.12.x
+# Install: pip install -r ml/requirements.txt
+#
+# Versions are pinned exactly (==) per the AI4I Development-track requirement
+# for locked manifests / dependency stability (Criteria C1).
+
+numpy==2.4.4
+scipy==1.17.1
+scikit-learn==1.8.0
+joblib==1.5.3
+threadpoolctl==3.6.0

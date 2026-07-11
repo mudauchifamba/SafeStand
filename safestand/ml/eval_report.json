@@ -1,0 +1,15 @@
+{
+  "train_file": "ml/data/synthetic_training.csv",
+  "eval_file": "ml/data/real_eval.csv",
+  "model": "tfidf",
+  "train_rows": 900,
+  "train_label_balance": {
+    "genuine": 450,
+    "fraudulent": 450
+  },
+  "unverified_rows_in_training": 0,
+  "in_distribution_cv_mean": 1.0,
+  "held_out_accuracy": 1.0,
+  "held_out_correct": 10,
+  "held_out_total": 10
+}
