@@ -1,0 +1,70 @@
+{
+  "_meta": {
+    "description": "Seed dataset of documented land-fraud patterns and high-risk areas in Zimbabwe. Compiled from public news reports, court judgments (ZimLII), and anti-corruption commission statements. Every entry carries a public source. This is a risk-triage aid, NOT a legal ruling.",
+    "disclaimer": "Areas are flagged by documented pattern, not to assert that every stand in an area is fraudulent. Named schemes appear only where a public, citable source exists.",
+    "last_updated": "2026-07-11",
+    "seed_count": 8
+  },
+  "high_risk_areas": [
+    {
+      "area": "Budiriro",
+      "city": "Harare",
+      "pattern": "Illegal cooperatives selling stands without council-issued cessions; recurrent demolitions despite pending court challenges.",
+      "risk_weight": 0.8,
+      "source": "City of Harare Regularisation Task Force report (May 2025); Herald reporting on Budiriro 4 demolitions"
+    },
+    {
+      "area": "Whitecliff",
+      "city": "Harare",
+      "pattern": "Large-scale demolitions after stands sold via cooperative scheme on land later subject to an eviction order; hundreds of families displaced.",
+      "risk_weight": 0.9,
+      "source": "Public news reporting on 2026 Whitecliff demolitions"
+    },
+    {
+      "area": "Hopley",
+      "city": "Harare",
+      "pattern": "Illegal subdivision and sale of land; anti-corruption arrests of officials for defrauding home-seekers.",
+      "risk_weight": 0.85,
+      "source": "ZACC public statement, October 2025 (Hopley fraud arrests)"
+    },
+    {
+      "area": "Retreat",
+      "city": "Harare",
+      "pattern": "Land barons illegally pegging and selling stands on land reserved for the Harare Drive road expansion corridor; houses on the reserve face demolition.",
+      "risk_weight": 0.8,
+      "source": "Public reporting on Harare Drive / Retreat demolitions, March 2025"
+    },
+    {
+      "area": "Seke",
+      "city": "Chitungwiza / peri-urban Harare",
+      "pattern": "Communal land sold via 'sabhuku deals' without rural district council authority; allocation letters legally void under the Communal Lands Act.",
+      "risk_weight": 0.75,
+      "source": "Sunday Mail / news reporting on Seke sabhuku deals, 2025"
+    },
+    {
+      "area": "Caledonia",
+      "city": "Harare (peri-urban)",
+      "pattern": "Settlements declared illegal after cooperative sales; earlier demolition waves in the area.",
+      "risk_weight": 0.7,
+      "source": "News reporting on Melfort and Caledonia demolitions, 2023"
+    }
+  ],
+  "documented_schemes": [
+    {
+      "scheme_type": "unregistered_cooperative",
+      "descriptor": "Cooperative-style seller issuing 'offer letters' with no council-issued cession and no registrable title.",
+      "example_areas": ["Budiriro", "Whitecliff"],
+      "risk_weight": 0.85,
+      "source": "City of Harare Regularisation Task Force report (May 2025)",
+      "names_public_entity": false
+    },
+    {
+      "scheme_type": "sabhuku_communal_sale",
+      "descriptor": "Village head / traditional leader selling communal land without rural district council authority; void under the Communal Lands Act.",
+      "example_areas": ["Seke", "Domboshava", "Chihota"],
+      "risk_weight": 0.8,
+      "source": "Legal commentary citing Communal Lands Act (Sections 3 and 8); 2024-2025 news reporting",
+      "names_public_entity": false
+    }
+  ]
+}

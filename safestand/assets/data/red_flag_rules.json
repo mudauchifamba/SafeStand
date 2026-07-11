@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "description": "Red-flag rules applied to scanned document text. Each rule has a weight and a plain-language explanation shown to the user. Weights sum-normalised at scoring time.",
+    "version": "0.1.0"
+  },
+  "rules": [
+    {
+      "id": "no_council_reference",
+      "label": "No council file reference",
+      "weight": 3,
+      "detect": "absence",
+      "keywords_present_means_ok": ["council", "CH/", "town clerk", "housing department", "rowan martin"],
+      "explanation": "Genuine allocations are traceable to a specific council file or minute reference. None was found."
+    },
+    {
+      "id": "no_sg_diagram_reference",
+      "label": "No Surveyor-General / Diagram number",
+      "weight": 3,
+      "detect": "absence",
+      "keywords_present_means_ok": ["SG ", "diagram", "general plan", "surveyor-general"],
+      "explanation": "A real stand has a survey Diagram or General Plan number. Without it, the seller's claim to the land cannot be traced."
+    },
+    {
+      "id": "regularise_later_language",
+      "label": "'Title deeds later / once regularised' language",
+      "weight": 2,
+      "detect": "presence",
+      "keywords": ["regularis", "will be processed", "in progress", "pending council", "verbally approved", "once the area"],
+      "explanation": "Promising title deeds 'later' or 'once regularised' is a common stalling tactic used to take money before any real legal process exists."
+    },
+    {
+      "id": "cash_only_payment",
+      "label": "Cash-only / informal payment",
+      "weight": 2,
+      "detect": "presence",
+      "keywords": ["cash only", "cash-only", "non-refundable", "ecocash to", "personal number"],
+      "explanation": "Genuine council transactions issue numbered, auditable receipts to an institutional account. Cash-only, non-refundable demands are a warning sign."
+    },
+    {
+      "id": "payment_to_individual",
+      "label": "Payment to an individual, not an institution",
+      "weight": 2,
+      "detect": "presence",
+      "keywords": ["treasurer", "chairperson's", "personal account", "personal number"],
+      "explanation": "Money routed to an individual (a treasurer or chairperson) rather than a council or registered account is difficult to trace and recover."
+    },
+    {
+      "id": "no_cooperative_registration",
+      "label": "No cooperative registration number",
+      "weight": 1,
+      "detect": "absence",
+      "keywords_present_means_ok": ["registration no", "reg no", "registered"],
+      "explanation": "Legitimate cooperatives are registered and can be checked with the Registrar of Cooperative Societies. No registration number was found."
+    },
+    {
+      "id": "unregistered_seller_type",
+      "label": "Seller is a cooperative/trust, not a title-holder",
+      "weight": 1,
+      "detect": "presence",
+      "keywords": ["co-operative", "cooperative", "housing trust", "sabhuku"],
+      "explanation": "Cooperatives are not always fraudulent, but a cooperative selling without council authority or registrable title is the most common source of land fraud. Verify its authority independently."
+    }
+  ],
+  "verdict_bands": [
+    { "band": "green", "min_score": 0, "max_score": 24, "label": "Lower risk", "advice": "Fewer red flags found, but still verify independently before paying." },
+    { "band": "amber", "min_score": 25, "max_score": 49, "label": "Caution", "advice": "Several warning signs. Do not pay until you have verified with the authorities below." },
+    { "band": "red", "min_score": 50, "max_score": 100, "label": "High risk", "advice": "Strong warning signs consistent with known fraud patterns. Do not pay. Verify with the authorities below first." }
+  ],
+  "next_steps": [
+    "Deeds Registry, Harare — confirm who legally holds title to the stand.",
+    "Surveyor-General's office — confirm the stand and its Diagram / General Plan exist.",
+    "Registrar of Cooperative Societies — confirm the cooperative is registered.",
+    "City of Harare Housing Department (Rowan Martin Building) — confirm the allocation and that no demolition order is pending.",
+    "Engage your OWN conveyancer to conduct a deeds search — not the seller's."
+  ]
+}

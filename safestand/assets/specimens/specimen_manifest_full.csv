@@ -1,0 +1,12 @@
+file,cooperative,buyer,has_council_ref,has_sg_diagram_ref,has_coop_registration,cash_only_payment,regularise_later_clause,has_stamp,payment_to_individual,has_witness,red_flag_count_of_8,risk_score_pct,label,stamp_color,stamp_ref_realism
+specimen_03_takaitora.pdf,TAKAITORA NYIKA CO-OPERATIVE,Mr. Tinashe Moyo,0,0,0,1,1,0,1,0,8,100,high_risk,no_stamp,no_stamp
+specimen_04_parkridge.pdf,PARKRIDGE HOUSING TRUST,Mrs. Rutendo Sibanda,0,0,1,1,1,1,1,0,6,75,high_risk,green,slight_mismatch
+specimen_05_excellence.pdf,EXCELLENCE STARS HOUSING CO-OP,Mr. Kudakwashe Mangwiro,0,0,0,1,0,0,1,0,7,88,high_risk,no_stamp,no_stamp
+specimen_06_united.pdf,UNITED WE STAND HOUSING CO-OPERATIVE,Ms. Nyasha Chirwa,1,0,1,1,1,1,0,0,4,50,high_risk,green,high_mismatch
+specimen_07_bantu.pdf,BANTU HOUSING CO-OPERATIVE,Mr. Farai Chiweshe,0,0,0,1,0,0,1,0,7,88,high_risk,no_stamp,no_stamp
+specimen_08_zvikomborero.pdf,ZVIKOMBORERO HOUSING CO-OPERATIVE,Mrs. Tariro Gumbo,0,1,1,0,1,1,0,0,3,38,medium_risk,blue,slight_mismatch
+specimen_09_ruvimbo.pdf,RUVIMBO YETU HOUSING CO-OPERATIVE,Mr. Blessing Nyamande,0,0,0,1,1,1,1,0,7,88,high_risk,red,high_mismatch
+specimen_10_good.pdf,GOOD HOPE HOUSING CO-OPERATIVE,Ms. Precious Dube,1,1,1,0,0,1,0,1,0,0,low_risk,red,high_mismatch
+specimen_11_council_offer_letter.pdf,CITY OF HARARE — HOUSING AND COMMUNITY SERVICES DEPARTMENT,(see body),1,1,1,0,0,1,0,1,0,0,low_risk,green,n/a_matches_own_pattern
+specimen_12_cession_letter.pdf,MABVUKU-TAFARA HOUSING CO-OPERATIVE,(see body),1,1,1,0,1,1,0,1,1,12,low_risk,green,n/a_matches_own_pattern
+specimen_13_agreement_of_sale.pdf,AGREEMENT OF SALE,(see body),1,1,1,0,0,1,0,1,0,0,low_risk,green,n/a_matches_own_pattern
