@@ -1,0 +1,38 @@
+{
+  "_meta": {
+    "description": "Offline gazetteer of Harare-region suburbs and towns for the remote stand check. Centre points are approximate suburb centroids; radius_km is a generous match radius. Used only to compare a photo's EXIF GPS against the claimed area — never for precise stand location.",
+    "version": "0.1.0"
+  },
+  "places": [
+    { "name": "Glen View", "city": "Harare", "lat": -17.905, "lon": 30.985, "radius_km": 4 },
+    { "name": "Glen Norah", "city": "Harare", "lat": -17.900, "lon": 30.995, "radius_km": 3.5 },
+    { "name": "Budiriro", "city": "Harare", "lat": -17.920, "lon": 30.930, "radius_km": 4 },
+    { "name": "Whitecliff", "city": "Harare", "lat": -17.870, "lon": 30.870, "radius_km": 4 },
+    { "name": "Hopley", "city": "Harare", "lat": -17.930, "lon": 31.020, "radius_km": 4 },
+    { "name": "Retreat", "city": "Harare", "lat": -17.950, "lon": 31.030, "radius_km": 3.5 },
+    { "name": "Waterfalls", "city": "Harare", "lat": -17.920, "lon": 31.020, "radius_km": 4 },
+    { "name": "Southlea Park", "city": "Harare", "lat": -17.955, "lon": 31.000, "radius_km": 4 },
+    { "name": "Kuwadzana", "city": "Harare", "lat": -17.830, "lon": 30.900, "radius_km": 4 },
+    { "name": "Kuwadzana Extension", "city": "Harare", "lat": -17.825, "lon": 30.885, "radius_km": 3.5 },
+    { "name": "Dzivarasekwa", "city": "Harare", "lat": -17.800, "lon": 30.900, "radius_km": 4 },
+    { "name": "Warren Park", "city": "Harare", "lat": -17.820, "lon": 30.955, "radius_km": 3.5 },
+    { "name": "Mabelreign", "city": "Harare", "lat": -17.780, "lon": 30.970, "radius_km": 3.5 },
+    { "name": "Marlborough", "city": "Harare", "lat": -17.750, "lon": 30.970, "radius_km": 4 },
+    { "name": "Mount Pleasant", "city": "Harare", "lat": -17.760, "lon": 31.050, "radius_km": 4 },
+    { "name": "Borrowdale", "city": "Harare", "lat": -17.740, "lon": 31.100, "radius_km": 5 },
+    { "name": "Avondale", "city": "Harare", "lat": -17.800, "lon": 31.030, "radius_km": 3 },
+    { "name": "Highfield", "city": "Harare", "lat": -17.880, "lon": 31.010, "radius_km": 3.5 },
+    { "name": "Mbare", "city": "Harare", "lat": -17.865, "lon": 31.030, "radius_km": 3 },
+    { "name": "Epworth", "city": "Harare", "lat": -17.890, "lon": 31.150, "radius_km": 5 },
+    { "name": "Caledonia", "city": "Harare (peri-urban)", "lat": -17.790, "lon": 31.250, "radius_km": 6 },
+    { "name": "Harare CBD", "city": "Harare", "lat": -17.830, "lon": 31.050, "radius_km": 3 },
+    { "name": "Chitungwiza", "city": "Chitungwiza", "lat": -18.010, "lon": 31.070, "radius_km": 8 },
+    { "name": "Seke", "city": "Chitungwiza / peri-urban", "lat": -18.050, "lon": 31.150, "radius_km": 10 },
+    { "name": "Domboshava", "city": "peri-urban Harare", "lat": -17.600, "lon": 31.130, "radius_km": 8 },
+    { "name": "Ruwa", "city": "Ruwa", "lat": -17.890, "lon": 31.240, "radius_km": 6 },
+    { "name": "Norton", "city": "Norton", "lat": -17.880, "lon": 30.700, "radius_km": 8 },
+    { "name": "Knowe", "city": "Norton", "lat": -17.890, "lon": 30.680, "radius_km": 4 },
+    { "name": "Goodhope", "city": "Harare (peri-urban)", "lat": -17.700, "lon": 30.950, "radius_km": 5 },
+    { "name": "Westlea", "city": "Harare", "lat": -17.820, "lon": 30.980, "radius_km": 3 }
+  ]
+}

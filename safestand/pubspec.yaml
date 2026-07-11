@@ -17,6 +17,8 @@ dependencies:
   # Capture or pick a document image
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
+  exif: ^3.3.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -28,3 +30,4 @@ flutter:
   assets:
     - assets/data/known_cases.json
     - assets/data/red_flag_rules.json
+    - assets/data/gazetteer.json
