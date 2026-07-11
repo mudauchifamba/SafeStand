@@ -1,0 +1,30 @@
+name: safestand
+description: "Offline land-deal risk triage for Zimbabwean home-seekers."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # On-device OCR (offline) — reads offer letters / agreements of sale
+  google_mlkit_text_recognition: ^0.15.0
+
+  # Capture or pick a document image
+  image_picker: ^1.1.2
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/data/known_cases.json
+    - assets/data/red_flag_rules.json
