@@ -14,10 +14,10 @@ import '../widgets/ai_scan_overlay.dart';
 import '../widgets/satellite_view.dart';
 import 'result_screen.dart';
 
-/// The diaspora flow: "I'm abroad, the seller sent me photos of my stand —
-/// is this deal real?" Checks the seller's photos' embedded location and
-/// date against the claimed area, shows satellite imagery of the claimed
-/// spot, and scores the claimed area against documented fraud patterns.
+/// The unified "check a stand" flow. Works with as little as an area name
+/// (documented-cases lookup) and gets stronger with every input added:
+/// seller's pin (satellite view, wetland layer, geometry cross-checks) and
+/// seller's photos (EXIF forensics + AI content/consistency analysis).
 class RemoteCheckScreen extends StatefulWidget {
   final RiskScorer scorer;
 
@@ -33,6 +33,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   final _areaController = TextEditingController();
   final _sellerController = TextEditingController();
   final _pinController = TextEditingController();
+  final _standController = TextEditingController();
 
   final _landService = LandContextService();
 
@@ -43,6 +44,8 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   bool _analyzing = false;
   LandContext? _land;
   String? _landTargetKey; // coordinates the current _land result is for
+  PhotoContentAnalysis? _photoContent;
+  int _photoContentCount = 0; // photos covered by the current analysis
 
   @override
   void initState() {
@@ -60,6 +63,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     _areaController.dispose();
     _sellerController.dispose();
     _pinController.dispose();
+    _standController.dispose();
     super.dispose();
   }
 
@@ -101,16 +105,61 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     return _land!.available ? ScanState.success : ScanState.error;
   }
 
-  Future<void> _analyzeLand() async {
+  /// When the buyer typed no area but pasted a pin, derive the suburb from
+  /// the gazetteer so the documented-cases check still runs. A derived area
+  /// is NOT treated as a seller claim (no pin-vs-area contradiction check).
+  GazetteerPlace? get _derivedPlace {
+    final pin = _pin;
+    if (pin == null) return null;
+    GazetteerPlace? best;
+    double bestD = double.infinity;
+    for (final p in _places) {
+      final d = PhotoEvidenceService.distanceKm(pin.$1, pin.$2, p.lat, p.lon);
+      if (d <= p.radiusKm + 2 && d < bestD) {
+        best = p;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  /// One button, all online AI: land context at the pin + the seller's
+  /// photos judged against the claim and the satellite view.
+  Future<void> _runAiAnalysis() async {
     final target = _analysisTarget;
-    if (target == null) return;
+    if (target == null && _photos.isEmpty) return;
     setState(() => _analyzing = true);
-    final result = await _landService.analyze(target.$1, target.$2);
+
+    final claim = [
+      if (_areaController.text.trim().isNotEmpty)
+         'stand in ${_areaController.text.trim()}',
+      if (_standController.text.trim().isNotEmpty)
+        _standController.text.trim(),
+      if (_sellerController.text.trim().isNotEmpty)
+        'sold by ${_sellerController.text.trim()}',
+    ].join(', ');
+
+    final landFuture = target != null
+        ? _landService.analyze(target.$1, target.$2)
+        : Future<LandContext?>.value(null);
+    final photosFuture = _photos.isNotEmpty
+        ? _landService.analyzePhotos(
+            photoPaths: _photos.map((p) => p.path).toList(),
+            claim: claim.isEmpty ? 'a residential stand' : claim,
+            lat: _pin?.$1,
+            lon: _pin?.$2,
+          )
+        : Future<PhotoContentAnalysis?>.value(null);
+
+    final results = await Future.wait<Object?>([landFuture, photosFuture]);
     if (!mounted) return;
     setState(() {
       _analyzing = false;
-      _land = result;
-      _landTargetKey = '${target.$1},${target.$2}';
+      _land = results[0] as LandContext?;
+      _landTargetKey =
+          target != null ? '${target.$1},${target.$2}' : null;
+      _photoContent = results[1] as PhotoContentAnalysis?;
+      _photoContentCount = _photos.length;
     });
   }
 
@@ -128,11 +177,19 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   }
 
   void _check() {
-    final area = _areaController.text.trim();
-    if (area.isEmpty) {
+    var area = _areaController.text.trim();
+    final pin = _pin;
+    final typedArea = area.isNotEmpty;
+
+    if (!typedArea && pin == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Enter the area the seller claims the stand is in.')));
+          content: Text('Enter the area the seller claims, or paste the '
+              'seller\'s location pin.')));
       return;
+    }
+    // Pin only: derive the suburb so the documented-cases check still runs.
+    if (!typedArea && _derivedPlace != null) {
+      area = _derivedPlace!.name;
     }
 
     final results = _photos
@@ -143,20 +200,27 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
             ))
         .toList();
 
-    final pin = _pin;
     final verdict = RemoteCheckService(scorer: widget.scorer).evaluate(
       claimedArea: area,
       seller: _sellerController.text,
       photoResults: results,
       pinLat: pin?.$1,
       pinLon: pin?.$2,
-      claimedPlace: _claimedPlace,
+      // A derived area is not a seller claim — only cross-check the pin
+      // against the area when the buyer actually typed a claim.
+      claimedPlace: typedArea ? _claimedPlace : null,
       landContext: _landIsCurrent ? _land : null,
       wetlandHit: _wetlandHit,
+      photoContent:
+          _photoContentCount == _photos.length ? _photoContent : null,
     );
 
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ResultScreen(verdict: verdict, area: area),
+      builder: (_) => ResultScreen(
+        verdict: verdict,
+        area: typedArea ? area : (area.isEmpty ? null : 'near $area'),
+        standNumber: _standController.text.trim(),
+      ),
     ));
   }
 
@@ -218,7 +282,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                   ]),
           ),
           child: OutlinedButton.icon(
-            onPressed: _analyzing ? null : _analyzeLand,
+            onPressed: _analyzing ? null : _runAiAnalysis,
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: kAiAccent.withValues(alpha: 0.7)),
               foregroundColor: kAiAccent,
@@ -233,9 +297,11 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                   )
                 : const Icon(Icons.auto_awesome_outlined),
             label: Text(_analyzing
-                ? 'Analysing satellite image…'
-                : land == null
-                    ? 'Analyse this location with AI'
+                ? 'Running AI analysis…'
+                : (land == null && _photoContent == null)
+                    ? (_photos.isEmpty
+                        ? 'Analyse this location with AI'
+                        : 'Analyse location + photos with AI')
                     : 'Re-analyse with AI'),
           ),
         ),
@@ -286,6 +352,10 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
               ),
             ),
         ],
+        if (_photoContent != null) ...[
+          const SizedBox(height: 12),
+          _buildPhotoContentCard(context, _photoContent!),
+        ],
         const SizedBox(height: 6),
         Text(
           'AI reads free, low-detail satellite imagery — treat it as a second '
@@ -296,21 +366,79 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     );
   }
 
+  Widget _buildPhotoContentCard(BuildContext context, PhotoContentAnalysis p) {
+    if (!p.available) {
+      return Text(
+        'AI photo check could not be completed (${p.error}).',
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
+      );
+    }
+    final bad = p.authenticity != 'ok' ||
+        p.satelliteConsistency == 'inconsistent';
+    final headline = p.authenticity == 'strong_concerns'
+        ? 'Photos show strong signs of being fake or recycled'
+        : p.authenticity == 'suspicious'
+            ? 'Photos look suspicious'
+            : p.satelliteConsistency == 'inconsistent'
+                ? 'Photos do not match the pinned location'
+                : p.satelliteConsistency == 'consistent'
+                    ? 'Photos are plausible for this location'
+                    : 'Photos analysed';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bad
+            ? Theme.of(context).colorScheme.errorContainer
+            : kAiAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color:
+                bad ? Colors.transparent : kAiAccent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.image_search_outlined,
+                  size: 18, color: bad ? null : kAiAccent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('AI photo check: $headline',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text([
+            if (p.photosShow.isNotEmpty) p.photosShow,
+            if (p.authenticityReasons.isNotEmpty) p.authenticityReasons,
+            if (p.consistencyReasons.isNotEmpty) p.consistencyReasons,
+          ].join(' ')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final place = _claimedPlace;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Check a stand remotely')),
+      appBar: AppBar(title: const Text('Check a stand')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             Text(
-              'Buying from abroad? Enter the area the seller claims, and add '
-              'the photos they sent you. We check where and when those photos '
-              'were really taken — and show you the claimed spot from '
-              'satellite.',
+              'Enter what the seller told you — every detail you add unlocks '
+              'a stronger check. The area alone checks documented fraud '
+              'patterns; the seller\'s pin adds satellite and wetland checks; '
+              'their photos get verified by AI.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
@@ -329,6 +457,15 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
               decoration: const InputDecoration(
                 labelText: 'Seller / cooperative name (optional)',
                 prefixIcon: Icon(Icons.person_outline),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _standController,
+              decoration: const InputDecoration(
+                labelText: 'Stand number (optional)',
+                hintText: 'e.g. Stand 1234',
+                prefixIcon: Icon(Icons.tag_outlined),
               ),
             ),
             const SizedBox(height: 16),
@@ -485,7 +622,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                     'It should agree with the pin and the claimed area.',
               ),
             ],
-            if (_analysisTarget != null) ...[
+            if (_analysisTarget != null || _photos.isNotEmpty) ...[
               const SizedBox(height: 20),
               _buildLandAiSection(context),
             ],

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/case_repository.dart';
 import '../services/risk_scorer.dart';
 import '../widgets/ai_scan_overlay.dart' show kAiAccent;
-import 'manual_entry_screen.dart';
 import 'remote_check_screen.dart';
 import 'scan_screen.dart';
 
@@ -77,20 +76,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 40),
                 _PathCard(
-                  icon: Icons.edit_note,
-                  title: 'Enter stand details',
-                  subtitle:
-                      'Type the stand number, area and seller you were given.',
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => ManualEntryScreen(scorer: scorer),
-                  )),
-                ),
-                const SizedBox(height: 16),
-                _PathCard(
                   icon: Icons.document_scanner_outlined,
                   title: 'Scan a document',
                   subtitle:
-                      'Photograph the offer letter or agreement of sale.',
+                      'Photograph the offer letter or agreement of sale — '
+                      'our trained AI model checks it for fraud patterns.',
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => ScanScreen(scorer: scorer),
                   )),
@@ -98,10 +88,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
                 _PathCard(
                   icon: Icons.satellite_alt_outlined,
-                  title: 'Check a stand remotely',
+                  title: 'Check a stand',
                   subtitle:
-                      'Buying from abroad? Verify the seller\'s photos with '
-                      'AI-read satellite imagery.',
+                      'Enter the area, the seller\'s pin, or their photos — '
+                      'AI verifies them against satellite imagery and '
+                      'documented fraud patterns.',
                   accent: kAiAccent,
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => RemoteCheckScreen(scorer: scorer),
