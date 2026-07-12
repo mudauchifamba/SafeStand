@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/case_repository.dart';
 import '../services/risk_scorer.dart';
 import '../widgets/ai_scan_overlay.dart' show kAiAccent;
+import '../widgets/app_logo.dart';
 import 'remote_check_screen.dart';
 import 'scan_screen.dart';
 
@@ -39,25 +40,11 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             final scorer = snap.data!;
 
-            final scheme = Theme.of(context).colorScheme;
             return ListView(
               padding: const EdgeInsets.all(24),
               children: [
                 const SizedBox(height: 24),
-                Container(
-                  width: 96,
-                  height: 96,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(colors: [
-                      scheme.primary.withValues(alpha: 0.18),
-                      scheme.primary.withValues(alpha: 0.0),
-                    ]),
-                  ),
-                  child: Icon(Icons.shield_outlined,
-                      size: 56, color: scheme.primary),
-                ),
+                const Center(child: AppLogo(size: 88, withBackground: true)),
                 const SizedBox(height: 16),
                 Text(
                   'SafeStand',
