@@ -139,9 +139,9 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   String _landErrorMessage(String? error) {
     final e = error ?? '';
     if (e.contains('429')) {
-      return 'AI analysis was rate-limited by Google (error 429 — quota '
-          'exceeded), not an internet problem. The free tier has a daily '
-          'limit, or this key\'s project has no quota enabled. Details: $e';
+      return 'AI analysis was rate-limited (error 429 — quota exceeded), '
+          'not an internet problem. Wait a moment and try again. '
+          'Details: $e';
     }
     if (e.contains('401') || e.contains('403')) {
       return 'AI analysis was refused for authentication (error $e). Check '
@@ -158,7 +158,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   }
 
   Widget _buildLandAiSection(BuildContext context) {
-    if (!Config.hasGeminiKey) {
+    if (!Config.hasGroqKey) {
       return Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -167,7 +167,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
         ),
         child: Text(
           'AI land analysis is not configured in this build. The offline '
-          'checks above still work. (Add a Gemini API key to enable an AI '
+          'checks above still work. (Add a Groq API key to enable an AI '
           'reading of the satellite image.)',
           style: Theme.of(context).textTheme.bodySmall,
         ),

@@ -60,9 +60,9 @@ class LandContext {
       );
 }
 
-/// Sends the satellite tile at a coordinate to a vision LLM (Gemini) and asks
-/// it to classify the land. This is the app's one online AI step; it augments
-/// — never replaces — the offline checks, and its output is scored
+/// Sends the satellite tile at a coordinate to a vision LLM (via Groq) and
+/// asks it to classify the land. This is the app's one online AI step; it
+/// augments — never replaces — the offline checks, and its output is scored
 /// conservatively (only water/wetland and dense build-up move the needle).
 class LandContextService {
   final http.Client _client;
@@ -94,7 +94,7 @@ class LandContextService {
   }
 
   Future<LandContext> analyze(double lat, double lon, {int zoom = 17}) async {
-    if (!Config.hasGeminiKey) {
+    if (!Config.hasGroqKey) {
       return LandContext.unavailable('no_api_key');
     }
 
@@ -110,31 +110,32 @@ class LandContextService {
       final mime = tileResp.headers['content-type'] ?? 'image/jpeg';
       final b64 = base64Encode(tileResp.bodyBytes);
 
-      // 2. Ask Gemini to classify it. The key is passed in the
-      // x-goog-api-key header, which supports both the newer AQ. secure
-      // keys and the legacy AIza traffic keys.
-      final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/'
-          '${Config.geminiVisionModel}:generateContent');
+      // 2. Ask the Groq-hosted vision model to classify it. Groq exposes an
+      // OpenAI-compatible chat completions endpoint.
+      final url =
+          Uri.parse('https://api.groq.com/openai/v1/chat/completions');
       final body = jsonEncode({
-        'contents': [
+        'model': Config.groqVisionModel,
+        'temperature': 0.0,
+        'messages': [
           {
-            'parts': [
-              {'text': _prompt},
+            'role': 'user',
+            'content': [
+              {'type': 'text', 'text': _prompt},
               {
-                'inline_data': {'mime_type': mime, 'data': b64}
+                'type': 'image_url',
+                'image_url': {'url': 'data:$mime;base64,$b64'}
               }
             ]
           }
-        ],
-        'generationConfig': {'temperature': 0.0}
+        ]
       });
 
       final resp = await _client
           .post(url,
               headers: {
                 'Content-Type': 'application/json',
-                'x-goog-api-key': Config.geminiApiKey,
+                'Authorization': 'Bearer ${Config.groqApiKey}',
               },
               body: body)
           .timeout(const Duration(seconds: 30));
@@ -154,16 +155,16 @@ class LandContextService {
     }
   }
 
-  /// Pulls the human-readable reason out of a Gemini error response, e.g.
-  /// "RESOURCE_EXHAUSTED" / quota messages, so the UI can tell the user what
-  /// actually went wrong instead of a generic failure.
+  /// Pulls the human-readable reason out of a Groq/OpenAI-style error
+  /// response so the UI can tell the user what actually went wrong instead
+  /// of a generic failure.
   String _apiErrorReason(String body) {
     try {
       final j = jsonDecode(body) as Map<String, dynamic>;
       final err = j['error'] as Map<String, dynamic>?;
-      final status = err?['status']?.toString();
+      final type = err?['type']?.toString();
       final message = err?['message']?.toString();
-      return [status, message]
+      return [type, message]
           .where((s) => s != null && s.isNotEmpty)
           .join(' — ');
     } catch (_) {
@@ -174,14 +175,10 @@ class LandContextService {
 
   String? _extractText(Map<String, dynamic> json) {
     try {
-      final candidates = json['candidates'] as List?;
-      if (candidates == null || candidates.isEmpty) return null;
-      final parts =
-          (candidates.first['content']?['parts'] as List?) ?? const [];
-      for (final p in parts) {
-        final t = p['text'];
-        if (t is String && t.trim().isNotEmpty) return t;
-      }
+      final choices = json['choices'] as List?;
+      if (choices == null || choices.isEmpty) return null;
+      final content = choices.first['message']?['content'];
+      if (content is String && content.trim().isNotEmpty) return content;
     } catch (_) {}
     return null;
   }
