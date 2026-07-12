@@ -102,6 +102,23 @@ void main() {
     expect(p, lessThan(0.5));
   });
 
+  test('stamp concept: an official dated/referenced stamp reads safer than '
+      'an imitation stamp on the same document', () {
+    const base = 'Offer of stand 400, 250 sqm. USD 2000 payable. ';
+    final pOfficial = classifier.fraudProbability(
+        '$base Official date stamp: City of Harare Housing and Community '
+        'Services 12 MAR 2026 ref CH/HD/812.');
+    final pImitation = classifier.fraudProbability(
+        '$base Rubber stamp reads APPROVED with no date and no reference.');
+    expect(pOfficial, lessThan(pImitation),
+        reason: 'official stamp text should lower fraud probability '
+            'relative to an imitation stamp');
+    final pMisspelt = classifier.fraudProbability(
+        '$base Stamp reads OFICIAL STAMP of the cooperative, no council '
+        'stamp.');
+    expect(pOfficial, lessThan(pMisspelt));
+  });
+
   test('top contributions are inspectable and non-empty', () {
     final contribs = classifier.topContributions(
         'cash only non-refundable title deeds once the area is regularised');
