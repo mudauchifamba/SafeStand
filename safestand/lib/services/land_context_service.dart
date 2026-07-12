@@ -71,11 +71,17 @@ class LandContextService {
   LandContextService({http.Client? client}) : _client = client ?? http.Client();
 
   static const _prompt =
-      'You are looking at a satellite/aerial image tile of a location in '
+      'You are looking at satellite/aerial imagery of ONE location in '
       'Zimbabwe, being checked by someone deciding whether to buy a '
-      'residential stand there. Classify the DOMINANT land cover in the '
-      'centre of the image into exactly one of: built_up_dense, '
-      'built_up_scattered, bare_land, vegetation, water_or_wetland. '
+      'residential stand there. Image 1 is a close-up (~150 m across); '
+      'Image 2 is the same centre point zoomed out (~1.2 km across) for '
+      'context. Classify the DOMINANT land cover at the CENTRE of Image 1 '
+      'into exactly one of: built_up_dense, built_up_scattered, bare_land, '
+      'vegetation, water_or_wetland. '
+      'IMPORTANT: reservoir and lake water in Zimbabwe is often GREEN from '
+      'algae, not blue. A smooth, uniform, texture-less green or dark '
+      'surface with no tree crowns, no roads and no shadows is almost '
+      'certainly WATER - check Image 2 for a shoreline to confirm. '
       'ALSO check for SEASONAL WETLAND (vlei) indicators - in Harare these '
       'are grassy areas that look dry and buildable but flood seasonally '
       'and get houses demolished. Indicators: visible water, marsh or reed '
@@ -108,16 +114,24 @@ class LandContextService {
     }
 
     try {
-      // 1. Fetch the satellite tile bytes.
-      final tileResp =
+      // 1. Fetch a close-up tile plus a zoomed-out tile of the same point —
+      // the wide view gives the model shoreline/settlement context that a
+      // single uniform close-up (e.g. green algae-rich water) lacks.
+      final closeResp =
           await _client.get(Uri.parse(tileUrl(lat, lon, zoom))).timeout(
                 const Duration(seconds: 20),
               );
-      if (tileResp.statusCode != 200 || tileResp.bodyBytes.isEmpty) {
+      if (closeResp.statusCode != 200 || closeResp.bodyBytes.isEmpty) {
         return LandContext.unavailable('tile_fetch_failed');
       }
-      final mime = tileResp.headers['content-type'] ?? 'image/jpeg';
-      final b64 = base64Encode(tileResp.bodyBytes);
+      final wideResp = await _client
+          .get(Uri.parse(tileUrl(lat, lon, zoom - 3)))
+          .timeout(const Duration(seconds: 20));
+      final mime = closeResp.headers['content-type'] ?? 'image/jpeg';
+      final b64Close = base64Encode(closeResp.bodyBytes);
+      final b64Wide = wideResp.statusCode == 200 && wideResp.bodyBytes.isNotEmpty
+          ? base64Encode(wideResp.bodyBytes)
+          : null;
 
       // 2. Ask the Groq-hosted vision model to classify it. Groq exposes an
       // OpenAI-compatible chat completions endpoint.
@@ -133,8 +147,13 @@ class LandContextService {
               {'type': 'text', 'text': _prompt},
               {
                 'type': 'image_url',
-                'image_url': {'url': 'data:$mime;base64,$b64'}
-              }
+                'image_url': {'url': 'data:$mime;base64,$b64Close'}
+              },
+              if (b64Wide != null)
+                {
+                  'type': 'image_url',
+                  'image_url': {'url': 'data:$mime;base64,$b64Wide'}
+                }
             ]
           }
         ]
