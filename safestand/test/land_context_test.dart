@@ -66,6 +66,74 @@ void main() {
     });
   });
 
+  group('AI photo-content scoring', () {
+    PhotoContentAnalysis pca({
+      String auth = 'ok',
+      String consistency = 'unclear',
+    }) =>
+        PhotoContentAnalysis(
+          photosShow: 'a bare stand.',
+          authenticity: auth,
+          authenticityReasons: 'test reason.',
+          satelliteConsistency: consistency,
+          consistencyReasons: 'test reason.',
+        );
+
+    test('strong fake concerns raise risk hard', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent: pca(auth: 'strong_concerns'),
+      );
+      expect(v.score, RemoteCheckService.photoFakeStrongPoints);
+      expect(v.reasons.any((r) => r.label.contains('not genuine')), isTrue);
+    });
+
+    test('satellite-inconsistent photos raise risk', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent: pca(consistency: 'inconsistent'),
+      );
+      expect(v.score, RemoteCheckService.photoInconsistentPoints);
+      expect(v.reasons.any((r) => r.label.contains('do not match')), isTrue);
+    });
+
+    test('suspicious + inconsistent stack', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent: pca(auth: 'suspicious', consistency: 'inconsistent'),
+      );
+      expect(
+          v.score,
+          RemoteCheckService.photoFakeSuspiciousPoints +
+              RemoteCheckService.photoInconsistentPoints);
+    });
+
+    test('clean consistent photos add only a zero-weight note', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent: pca(consistency: 'consistent'),
+      );
+      expect(v.score, 0);
+      final note =
+          v.reasons.firstWhere((r) => r.label.contains('plausible'));
+      expect(note.weight, 0);
+    });
+
+    test('unavailable analysis is ignored', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent: PhotoContentAnalysis.unavailable('no_api_key'),
+      );
+      expect(v.score, 0);
+      expect(v.reasons.any((r) => r.label.contains('photo check')), isFalse);
+    });
+  });
+
   group('tile math', () {
     test('produces a valid Esri URL with sane tile indices', () {
       final url = LandContextService.tileUrl(-17.905, 30.985, 17);

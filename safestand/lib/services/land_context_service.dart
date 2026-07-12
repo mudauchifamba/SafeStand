@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
@@ -57,6 +58,40 @@ class LandContext {
         landClass: LandClass.unknown,
         confidence: 'low',
         description: '',
+        available: false,
+        error: why,
+      );
+}
+
+/// AI judgment on the seller's photos themselves. Metadata can be stripped
+/// in transit; pixels cannot. The model judges what the photos show, whether
+/// they look recycled/fake (screenshots, watermarks, renders), and whether
+/// they plausibly match the satellite context at the pinned location.
+class PhotoContentAnalysis {
+  final String photosShow; // plain-language: what the photos depict
+  final String authenticity; // ok | suspicious | strong_concerns
+  final String authenticityReasons;
+  final String satelliteConsistency; // consistent | unclear | inconsistent
+  final String consistencyReasons;
+  final bool available;
+  final String? error;
+
+  PhotoContentAnalysis({
+    required this.photosShow,
+    required this.authenticity,
+    required this.authenticityReasons,
+    required this.satelliteConsistency,
+    required this.consistencyReasons,
+    this.available = true,
+    this.error,
+  });
+
+  factory PhotoContentAnalysis.unavailable(String why) => PhotoContentAnalysis(
+        photosShow: '',
+        authenticity: 'ok',
+        authenticityReasons: '',
+        satelliteConsistency: 'unclear',
+        consistencyReasons: '',
         available: false,
         error: why,
       );
@@ -180,6 +215,140 @@ class LandContextService {
       return _parse(text);
     } catch (e) {
       return LandContext.unavailable('exception');
+    }
+  }
+
+  static const _photoPrompt =
+      'You are helping someone abroad decide whether a land deal in Zimbabwe '
+      'is real. The seller\'s claim: "{claim}". '
+      'The FIRST {n} image(s) are photos the seller sent, claiming they show '
+      'the stand being sold.{satNote} '
+      'Judge three things. (1) What do the seller\'s photos actually show? '
+      '(2) Authenticity: signs of recycled or fake photos - phone/app UI '
+      'bars (screenshots), watermarks or listing-site logos, architectural '
+      'renders, terrain or architecture implausible for Zimbabwe. '
+      '(3) If satellite images are provided: could the photos plausibly have '
+      'been taken at that location - compare terrain, vegetation, slope, and '
+      'surrounding building density. Be conservative: "inconsistent" only '
+      'for clear contradictions. Reply ONLY with compact JSON: '
+      '{"photos_show":"one short sentence",'
+      '"authenticity":"ok|suspicious|strong_concerns",'
+      '"authenticity_reasons":"short sentence, empty if ok",'
+      '"satellite_consistency":"consistent|unclear|inconsistent",'
+      '"consistency_reasons":"short sentence"}.';
+
+  /// Analyse up to 3 seller photos, optionally against the satellite view of
+  /// the pinned location. One API call: photos first, then close + wide
+  /// satellite tiles (Groq allows 5 images per request).
+  Future<PhotoContentAnalysis> analyzePhotos({
+    required List<String> photoPaths,
+    required String claim,
+    double? lat,
+    double? lon,
+    int zoom = 17,
+  }) async {
+    if (!Config.hasGroqKey) {
+      return PhotoContentAnalysis.unavailable('no_api_key');
+    }
+    if (photoPaths.isEmpty) {
+      return PhotoContentAnalysis.unavailable('no_photos');
+    }
+
+    try {
+      final images = <Map<String, dynamic>>[];
+      final paths = photoPaths.take(3).toList();
+      for (final p in paths) {
+        final bytes = await File(p).readAsBytes();
+        images.add({
+          'type': 'image_url',
+          'image_url': {'url': 'data:image/jpeg;base64,${base64Encode(bytes)}'}
+        });
+      }
+
+      var hasSat = false;
+      if (lat != null && lon != null) {
+        for (final z in [zoom, zoom - 3]) {
+          final r = await _client
+              .get(Uri.parse(tileUrl(lat, lon, z)))
+              .timeout(const Duration(seconds: 20));
+          if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) {
+            hasSat = true;
+            images.add({
+              'type': 'image_url',
+              'image_url': {
+                'url':
+                    'data:${r.headers['content-type'] ?? 'image/jpeg'};base64,'
+                        '${base64Encode(r.bodyBytes)}'
+              }
+            });
+          }
+        }
+      }
+
+      final prompt = _photoPrompt
+          .replaceAll('{claim}', claim)
+          .replaceAll('{n}', '${paths.length}')
+          .replaceAll(
+              '{satNote}',
+              hasSat
+                  ? ' The LAST two images are satellite views of the pinned '
+                      'location (close-up ~150 m, then zoomed out ~1.2 km).'
+                  : ' No satellite view is available; skip the location '
+                      'comparison and mark it "unclear".');
+
+      final url =
+          Uri.parse('https://api.groq.com/openai/v1/chat/completions');
+      final body = jsonEncode({
+        'model': Config.groqVisionModel,
+        'temperature': 0.0,
+        'messages': [
+          {
+            'role': 'user',
+            'content': [
+              {'type': 'text', 'text': prompt},
+              ...images,
+            ]
+          }
+        ]
+      });
+
+      final resp = await _client
+          .post(url,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ${Config.groqApiKey}',
+              },
+              body: body)
+          .timeout(const Duration(seconds: 60));
+
+      if (resp.statusCode != 200) {
+        return PhotoContentAnalysis.unavailable(
+            'api_error_${resp.statusCode}: ${_apiErrorReason(resp.body)}');
+      }
+
+      final text = _extractText(jsonDecode(resp.body) as Map<String, dynamic>);
+      if (text == null) return PhotoContentAnalysis.unavailable('empty_response');
+
+      final match = RegExp(r'\{.*\}', dotAll: true).firstMatch(text);
+      if (match == null) return PhotoContentAnalysis.unavailable('unparseable');
+      final j = jsonDecode(match.group(0)!) as Map<String, dynamic>;
+
+      String pick(String key, Set<String> allowed, String fallback) {
+        final v = (j[key]?.toString() ?? '').toLowerCase().trim();
+        return allowed.contains(v) ? v : fallback;
+      }
+
+      return PhotoContentAnalysis(
+        photosShow: j['photos_show']?.toString() ?? '',
+        authenticity: pick('authenticity',
+            {'ok', 'suspicious', 'strong_concerns'}, 'ok'),
+        authenticityReasons: j['authenticity_reasons']?.toString() ?? '',
+        satelliteConsistency: pick('satellite_consistency',
+            {'consistent', 'unclear', 'inconsistent'}, 'unclear'),
+        consistencyReasons: j['consistency_reasons']?.toString() ?? '',
+      );
+    } catch (e) {
+      return PhotoContentAnalysis.unavailable('exception');
     }
   }
 

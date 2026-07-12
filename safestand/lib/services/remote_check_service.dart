@@ -33,6 +33,9 @@ class RemoteCheckService {
   static const mappedWetlandNearPoints = 10;
   static const aiWetlandStrongPoints = 20;
   static const aiWetlandPossiblePoints = 5;
+  static const photoFakeStrongPoints = 25;
+  static const photoFakeSuspiciousPoints = 10;
+  static const photoInconsistentPoints = 20;
 
   RiskVerdict evaluate({
     required String claimedArea,
@@ -43,6 +46,7 @@ class RemoteCheckService {
     GazetteerPlace? claimedPlace,
     LandContext? landContext,
     WetlandHit? wetlandHit,
+    PhotoContentAnalysis? photoContent,
   }) {
     // Base: claimed area vs documented fraud patterns.
     final base = scorer.score(area: claimedArea, seller: seller);
@@ -201,6 +205,51 @@ class RemoteCheckService {
             1,
           ));
         }
+      }
+    }
+
+    // --- AI photo-content analysis (online) ------------------------------
+    // Metadata can be stripped; pixels cannot. The vision model judges the
+    // seller's photos directly: recycled/fake tells and satellite mismatch.
+    if (photoContent != null && photoContent.available) {
+      switch (photoContent.authenticity) {
+        case 'strong_concerns':
+          score += photoFakeStrongPoints;
+          reasons.add(VerdictReason(
+            'AI photo check: strong signs the photos are not genuine',
+            '${photoContent.authenticityReasons} Recycled or fake photos '
+                'are a common land-scam tactic — ask for a live video call '
+                'from the stand instead.',
+            3,
+          ));
+        case 'suspicious':
+          score += photoFakeSuspiciousPoints;
+          reasons.add(VerdictReason(
+            'AI photo check: photos look suspicious',
+            '${photoContent.authenticityReasons} Ask the seller for '
+                'original photos or a live video call from the stand.',
+            2,
+          ));
+        default:
+          break;
+      }
+      if (photoContent.satelliteConsistency == 'inconsistent') {
+        score += photoInconsistentPoints;
+        reasons.add(VerdictReason(
+          'AI photo check: photos do not match the pinned location',
+          '${photoContent.consistencyReasons} The ground in the photos '
+              'does not look like the satellite view of the spot the seller '
+              'pinned — the photos may show a different piece of land.',
+          3,
+        ));
+      } else if (photoContent.satelliteConsistency == 'consistent' &&
+          photoContent.authenticity == 'ok') {
+        reasons.add(VerdictReason(
+          'AI photo check: photos are plausible for the pinned location',
+          '${photoContent.photosShow} This is a weak signal — consistent '
+              'photos do not prove the seller owns the land.',
+          0,
+        ));
       }
     }
 
