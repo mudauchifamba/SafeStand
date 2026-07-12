@@ -140,7 +140,8 @@ class LandContextService {
           .timeout(const Duration(seconds: 30));
 
       if (resp.statusCode != 200) {
-        return LandContext.unavailable('api_error_${resp.statusCode}');
+        return LandContext.unavailable(
+            'api_error_${resp.statusCode}: ${_apiErrorReason(resp.body)}');
       }
 
       final json = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -150,6 +151,24 @@ class LandContextService {
       return _parse(text);
     } catch (e) {
       return LandContext.unavailable('exception');
+    }
+  }
+
+  /// Pulls the human-readable reason out of a Gemini error response, e.g.
+  /// "RESOURCE_EXHAUSTED" / quota messages, so the UI can tell the user what
+  /// actually went wrong instead of a generic failure.
+  String _apiErrorReason(String body) {
+    try {
+      final j = jsonDecode(body) as Map<String, dynamic>;
+      final err = j['error'] as Map<String, dynamic>?;
+      final status = err?['status']?.toString();
+      final message = err?['message']?.toString();
+      return [status, message]
+          .where((s) => s != null && s.isNotEmpty)
+          .join(' — ');
+    } catch (_) {
+      final snippet = body.replaceAll('\n', ' ').trim();
+      return snippet.length > 160 ? '${snippet.substring(0, 160)}…' : snippet;
     }
   }
 

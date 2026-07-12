@@ -136,6 +136,27 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     ));
   }
 
+  String _landErrorMessage(String? error) {
+    final e = error ?? '';
+    if (e.contains('429')) {
+      return 'AI analysis was rate-limited by Google (error 429 — quota '
+          'exceeded), not an internet problem. The free tier has a daily '
+          'limit, or this key\'s project has no quota enabled. Details: $e';
+    }
+    if (e.contains('401') || e.contains('403')) {
+      return 'AI analysis was refused for authentication (error $e). Check '
+          'the API key.';
+    }
+    if (e.contains('tile_fetch_failed')) {
+      return 'Could not download the satellite image for this spot. Check '
+          'your connection and try again.';
+    }
+    if (e.contains('no_api_key')) {
+      return 'No AI key is configured in this build.';
+    }
+    return 'AI analysis could not be completed ($e). Please try again.';
+  }
+
   Widget _buildLandAiSection(BuildContext context) {
     if (!Config.hasGeminiKey) {
       return Container(
@@ -175,8 +196,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
           const SizedBox(height: 12),
           if (!land.available)
             Text(
-              'AI analysis could not be completed (${land.error}). '
-              'Check your internet connection and try again.',
+              _landErrorMessage(land.error),
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             )
           else
