@@ -110,10 +110,12 @@ class LandContextService {
       final mime = tileResp.headers['content-type'] ?? 'image/jpeg';
       final b64 = base64Encode(tileResp.bodyBytes);
 
-      // 2. Ask Gemini to classify it.
+      // 2. Ask Gemini to classify it. The key is passed in the
+      // x-goog-api-key header, which supports both the newer AQ. secure
+      // keys and the legacy AIza traffic keys.
       final url = Uri.parse(
           'https://generativelanguage.googleapis.com/v1beta/models/'
-          '${Config.geminiVisionModel}:generateContent?key=${Config.geminiApiKey}');
+          '${Config.geminiVisionModel}:generateContent');
       final body = jsonEncode({
         'contents': [
           {
@@ -129,7 +131,12 @@ class LandContextService {
       });
 
       final resp = await _client
-          .post(url, headers: {'Content-Type': 'application/json'}, body: body)
+          .post(url,
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': Config.geminiApiKey,
+              },
+              body: body)
           .timeout(const Duration(seconds: 30));
 
       if (resp.statusCode != 200) {
