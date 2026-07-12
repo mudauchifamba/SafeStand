@@ -50,6 +50,24 @@ Compare `held_out_accuracy` in `eval_report.json` before and after. If real-data
 training wins (expected), ship it. This comparison IS the evidence that access to
 real data advanced the project.
 
+## The stamp concept
+
+Genuine official documents carry a dated, file-referenced office stamp;
+imitations get it wrong — no date, no reference, misspellings ("OFICIAL"),
+marketing language ("APPROVED", "PAY TODAY"). OCR picks stamp text up, so the
+training data simulates this: genuine rows carry official-stamp phrases,
+fraudulent rows carry imitation-stamp phrases or none. The specimen PDFs in
+`test_docs/` render matching visual stamps (consistent official design on
+genuine docs; progressively wrong shape/colour/content on fakes).
+
+## Retraining without Python
+
+`tool/train_model.dart` (run `dart run tool/train_model.dart` from the app
+root) replicates this pipeline — same vectoriser settings, same balanced
+logistic regression, same export schema — and refuses to export if held-out
+accuracy drops. Use it where Python isn't available; `train.py` remains the
+canonical reference.
+
 ## Relationship to the rule engine
 
 `lib/services/risk_scorer.dart` (the red-flag rules) is NOT the AI — it is the

@@ -78,6 +78,33 @@ GENUINE_CLOSERS = [
     "registration will be lodged at the Deeds Registry, Harare",
 ]
 
+# --- Stamp concept ----------------------------------------------------------
+# Real official documents carry a dated, referenced office stamp; fraudulent
+# ones either have no stamp, or an imitation that is wrong in content
+# (no date / no file reference / misspellings), structure, or colour. OCR
+# picks stamp text up, so the classifier can learn this signal.
+MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
+def stamp_date():
+    return f"{random.randint(1,28):02d} {random.choice(MONTHS)} {random.choice([2024,2025,2026])}"
+
+GENUINE_STAMP = [
+    "official date stamp: City of Harare Housing and Community Services {d} ref CH/HD/{n}",
+    "bears the official date stamp of the Registrar of Deeds Harare dated {d} ref DT {n}",
+    "common seal of the council affixed {d} ref NTC/HD/{n}",
+    "official date stamp {d} council file CH/HOU/{n} appears on the letter",
+    "town clerk official date stamp dated {d} with file reference CH/{n}",
+]
+FRAUD_STAMP = [
+    "rubber stamp reads APPROVED with no date and no reference",
+    "stamp reads OFICIAL STAMP of the cooperative, no council stamp",
+    "bright red APPROVED stamp only, no file reference or date",
+    "orange RESERVED stamp reading PAY TODAY",
+    "chairman's personal stamp affixed, no official council stamp or date",
+    "cooperative stamp without date, reference or issuing office",
+]
+GENUINE_STAMP_P = 0.6   # most genuine docs mention their stamp
+FRAUD_STAMP_P = 0.35    # some fakes describe their imitation stamp; the rest have none
+
 def amt(): return random.choice([900,1200,1500,1800,2000,2400,2600,3200,8500,12000])
 def num(): return random.randint(40, 9999)
 
@@ -94,6 +121,8 @@ def make_fraud():
         parts.append(f"ref {random.choice(COOP_NAMES).split()[0][:3].upper()}/{num()} (unverified)")
     if random.random() < 0.35:
         parts.append(random.choice(FRAUD_CLOSERS))
+    if random.random() < FRAUD_STAMP_P:
+        parts.append(random.choice(FRAUD_STAMP))
     head = parts[0]; rest = parts[1:]; random.shuffle(rest)
     return ". ".join([head]+rest) + ".", "offer_letter", area
 
@@ -106,6 +135,8 @@ def make_genuine_council():
              random.choice(GENUINE_PAYMENT).format(a=amt(), n=num())]
     if random.random() < 0.5:
         parts.append(random.choice(GENUINE_CLOSERS))
+    if random.random() < GENUINE_STAMP_P:
+        parts.append(random.choice(GENUINE_STAMP).format(d=stamp_date(), n=num()))
     head = parts[0]; rest = parts[1:]; random.shuffle(rest)
     return ". ".join([head]+rest) + ".", dtype, area
 
@@ -118,6 +149,8 @@ def make_genuine_coop():
              random.choice(GENUINE_PAYMENT).format(a=amt(), n=num())]
     if random.random() < 0.5:
         parts.append("registration verifiable at Registrar of Cooperative Societies")
+    if random.random() < GENUINE_STAMP_P:
+        parts.append(random.choice(GENUINE_STAMP).format(d=stamp_date(), n=num()))
     head = parts[0]; rest = parts[1:]; random.shuffle(rest)
     return ". ".join([head]+rest) + ".", "cession", area
 
@@ -135,7 +168,7 @@ for _ in range(N//4):
 
 random.shuffle(rows)
 
-with open("/home/claude/safestand/ml/data/synthetic_training.csv", "w", newline="") as f:
+with open("ml/data/synthetic_training.csv", "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["text","label","doc_type","source","verified","region"])
     w.writerows(rows)
