@@ -2,6 +2,7 @@ import '../models/models.dart';
 import 'land_context_service.dart';
 import 'photo_evidence_service.dart';
 import 'risk_scorer.dart';
+import 'wetland_service.dart';
 
 /// Builds a verdict for the diaspora "check a stand remotely" flow.
 ///
@@ -28,6 +29,10 @@ class RemoteCheckService {
   static const photoNearPinKm = 1.0;
   static const wetlandPoints = 30;
   static const denseBuiltUpPoints = 12;
+  static const mappedWetlandInsidePoints = 35;
+  static const mappedWetlandNearPoints = 10;
+  static const aiWetlandStrongPoints = 20;
+  static const aiWetlandPossiblePoints = 5;
 
   RiskVerdict evaluate({
     required String claimedArea,
@@ -37,6 +42,7 @@ class RemoteCheckService {
     double? pinLon,
     GazetteerPlace? claimedPlace,
     LandContext? landContext,
+    WetlandHit? wetlandHit,
   }) {
     // Base: claimed area vs documented fraud patterns.
     final base = scorer.score(area: claimedArea, seller: seller);
@@ -106,6 +112,33 @@ class RemoteCheckService {
       }
     }
 
+    // --- Mapped wetland layer (offline, authoritative data) --------------
+    if (wetlandHit != null) {
+      final w = wetlandHit.wetland;
+      if (wetlandHit.inside) {
+        score += mappedWetlandInsidePoints;
+        reasons.add(VerdictReason(
+          'Pin falls inside a documented wetland: ${w.name}',
+          '${w.designation}. Stands sold on Harare wetlands are a documented '
+              'demolition risk — construction is restricted regardless of '
+              'what papers the seller shows. Boundary is indicative; confirm '
+              'with EMA before any payment. (Source: ${w.source})',
+          4,
+        ));
+      } else {
+        score += mappedWetlandNearPoints;
+        reasons.add(VerdictReason(
+          'Pin is at the edge of a documented wetland: ${w.name}',
+          'The pin is ${wetlandHit.distanceKm.toStringAsFixed(1)} km from '
+              'the centre of ${w.name} (${w.designation}), just outside its '
+              'indicative boundary. Wetland edges are exactly where risky '
+              'stands get pegged — confirm the wetland status with EMA. '
+              '(Source: ${w.source})',
+          2,
+        ));
+      }
+    }
+
     // --- AI satellite land-context (online) ------------------------------
     if (landContext != null && landContext.available) {
       switch (landContext.landClass) {
@@ -139,6 +172,35 @@ class RemoteCheckService {
           ));
         case LandClass.unknown:
           break;
+      }
+
+      // Vlei indicators (independent of the dominant class): a seasonal
+      // wetland can look like plain grass in dry-season imagery, so the AI
+      // is asked to look for drainage lines and undeveloped green corridors.
+      // Only fires when the mapped layer hasn't already flagged the spot.
+      if (landContext.landClass != LandClass.waterOrWetland &&
+          !(wetlandHit?.inside ?? false)) {
+        if (landContext.wetlandSigns == 'strong') {
+          score += aiWetlandStrongPoints;
+          reasons.add(VerdictReason(
+            'AI satellite check: strong seasonal-wetland (vlei) indicators',
+            'The AI reading of the satellite image found strong signs this '
+                'may be a vlei — land that looks dry and buildable but '
+                'floods seasonally. Confirm with EMA before any payment. '
+                '${landContext.description}',
+            3,
+          ));
+        } else if (landContext.wetlandSigns == 'possible') {
+          score += aiWetlandPossiblePoints;
+          reasons.add(VerdictReason(
+            'AI satellite check: possible seasonal-wetland (vlei) indicators',
+            'The AI reading noticed features that can indicate a vlei '
+                '(drainage lines or an undeveloped green corridor). This is '
+                'a weak signal — ask EMA about the wetland status of this '
+                'stand. ${landContext.description}',
+            1,
+          ));
+        }
       }
     }
 
@@ -222,6 +284,11 @@ class RemoteCheckService {
       reasons: reasons,
       matchedAreas: base.matchedAreas,
       nextSteps: [
+        if (wetlandHit != null ||
+            (landContext?.wetlandSigns ?? 'none') != 'none' ||
+            landContext?.landClass == LandClass.waterOrWetland)
+          'Environmental Management Agency (EMA) — confirm the wetland '
+              'status of this stand before considering any payment.',
         'Ask the seller to send the original photos "as a document" on '
             'WhatsApp so the location data survives.',
         'Ask for a live video call from the stand, showing a road sign or '

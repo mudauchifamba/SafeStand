@@ -9,6 +9,7 @@ import '../services/photo_evidence_service.dart';
 import '../services/pin_parser.dart';
 import '../services/remote_check_service.dart';
 import '../services/risk_scorer.dart';
+import '../services/wetland_service.dart';
 import '../widgets/ai_scan_overlay.dart';
 import '../widgets/satellite_view.dart';
 import 'result_screen.dart';
@@ -36,6 +37,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   final _landService = LandContextService();
 
   List<GazetteerPlace> _places = [];
+  List<Wetland> _wetlands = [];
   final List<PhotoEvidence> _photos = [];
   bool _busy = false;
   bool _analyzing = false;
@@ -48,6 +50,9 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     _photoService.loadGazetteer().then((p) {
       if (mounted) setState(() => _places = p);
     });
+    WetlandService().load().then((w) {
+      if (mounted) setState(() => _wetlands = w);
+    });
   }
 
   @override
@@ -59,6 +64,14 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
   }
 
   (double, double)? get _pin => PinParser.parse(_pinController.text);
+
+  /// Offline wetland-layer check for the seller's pin (pin only — the
+  /// suburb centre is too coarse to accuse of being a wetland).
+  WetlandHit? get _wetlandHit {
+    final pin = _pin;
+    if (pin == null || _wetlands.isEmpty) return null;
+    return WetlandService.check(pin.$1, pin.$2, _wetlands);
+  }
 
   GazetteerPlace? get _claimedPlace =>
       _photoService.matchPlace(_areaController.text, _places);
@@ -139,6 +152,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
       pinLon: pin?.$2,
       claimedPlace: _claimedPlace,
       landContext: _landIsCurrent ? _land : null,
+      wetlandHit: _wetlandHit,
     );
 
     Navigator.of(context).push(MaterialPageRoute(
@@ -403,6 +417,47 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                     'stand. Does it match what they described — vacant land, '
                     'or something else?',
               ),
+              if (_wetlandHit != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _wetlandHit!.inside
+                        ? Theme.of(context).colorScheme.errorContainer
+                        : Theme.of(context)
+                            .colorScheme
+                            .tertiaryContainer
+                            .withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.water_drop_outlined,
+                          size: 20,
+                          color: _wetlandHit!.inside
+                              ? Theme.of(context).colorScheme.error
+                              : null),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _wetlandHit!.inside
+                              ? 'This pin falls inside a documented wetland: '
+                                  '${_wetlandHit!.wetland.name} '
+                                  '(${_wetlandHit!.wetland.designation}). '
+                                  'Stands on wetlands face demolition. '
+                                  'Verify with EMA before paying anything.'
+                              : 'This pin is at the edge of a documented '
+                                  'wetland: ${_wetlandHit!.wetland.name}. '
+                                  'Ask EMA about the wetland status of this '
+                                  'exact stand.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ] else if (place != null) ...[
               const SizedBox(height: 20),
               Text('Satellite view of ${place.name}',
