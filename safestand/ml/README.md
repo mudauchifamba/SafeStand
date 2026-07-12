@@ -68,6 +68,17 @@ logistic regression, same export schema — and refuses to export if held-out
 accuracy drops. Use it where Python isn't available; `train.py` remains the
 canonical reference.
 
+## Phase 3 (roadmap): seasonal wetland classifier
+
+Harare's demolition-risk wetlands are mostly vleis — seasonally wet grassland
+that looks dry and buildable in single-date RGB imagery. The app currently
+layers (1) an offline documented-wetland lookup (authoritative data, not AI)
+and (2) vision-LLM vlei-indicator detection. Phase 3 trains our own
+classifier on wet-season/dry-season Sentinel-2 pairs, using ESA WorldCover's
+wetland class + the documented Harare vleis as free labels — detecting
+*unmapped* wetlands on-device. Needs an imagery pipeline (Python/GEE);
+planned for when a training environment is available.
+
 ## Relationship to the rule engine
 
 `lib/services/risk_scorer.dart` (the red-flag rules) is NOT the AI — it is the
