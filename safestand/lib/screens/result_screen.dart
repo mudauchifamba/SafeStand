@@ -67,21 +67,37 @@ class ResultScreen extends StatelessWidget {
           children: [
             // --- Verdict banner ---------------------------------------
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                border: Border.all(color: color, width: 2),
-                borderRadius: BorderRadius.circular(16),
+                color: color.withValues(alpha: 0.10),
+                border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: color.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      spreadRadius: -4),
+                ],
               ),
               child: Column(
                 children: [
-                  Icon(_bandIcon, size: 56, color: color),
-                  const SizedBox(height: 8),
+                  Container(
+                    width: 88,
+                    height: 88,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: color.withValues(alpha: 0.14),
+                    ),
+                    child: Icon(_bandIcon, size: 48, color: color),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     verdict.band.label.toUpperCase(),
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           color: color,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
                         ),
                   ),
                   const SizedBox(height: 4),

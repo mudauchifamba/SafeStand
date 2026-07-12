@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/case_repository.dart';
 import '../services/risk_scorer.dart';
+import '../widgets/ai_scan_overlay.dart' show kAiAccent;
 import 'manual_entry_screen.dart';
 import 'remote_check_screen.dart';
 import 'scan_screen.dart';
@@ -39,20 +40,33 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             final scorer = snap.data!;
 
+            final scheme = Theme.of(context).colorScheme;
             return ListView(
               padding: const EdgeInsets.all(24),
               children: [
                 const SizedBox(height: 24),
-                Icon(Icons.shield_outlined,
-                    size: 64, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 12),
+                Container(
+                  width: 96,
+                  height: 96,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(colors: [
+                      scheme.primary.withValues(alpha: 0.18),
+                      scheme.primary.withValues(alpha: 0.0),
+                    ]),
+                  ),
+                  child: Icon(Icons.shield_outlined,
+                      size: 56, color: scheme.primary),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'SafeStand',
                   textAlign: TextAlign.center,
                   style: Theme.of(context)
                       .textTheme
                       .headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -83,11 +97,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 16),
                 _PathCard(
-                  icon: Icons.public,
+                  icon: Icons.satellite_alt_outlined,
                   title: 'Check a stand remotely',
                   subtitle:
-                      'Buying from abroad? Verify the seller\'s photos and '
-                      'see the claimed location from satellite.',
+                      'Buying from abroad? Verify the seller\'s photos with '
+                      'AI-read satellite imagery.',
+                  accent: kAiAccent,
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => RemoteCheckScreen(scorer: scorer),
                   )),
@@ -113,31 +128,39 @@ class _PathCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final Color? accent;
 
   const _PathCard({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.accent,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tint = accent ?? scheme.primary;
+
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              Icon(icon, size: 40,
-                  color: Theme.of(context).colorScheme.primary),
+              Container(
+                width: 52,
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: tint.withValues(alpha: 0.14),
+                ),
+                child: Icon(icon, size: 26, color: tint),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -147,14 +170,14 @@ class _PathCard extends StatelessWidget {
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                            ?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Text(subtitle,
                         style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              Icon(Icons.chevron_right, color: scheme.outline),
             ],
           ),
         ),

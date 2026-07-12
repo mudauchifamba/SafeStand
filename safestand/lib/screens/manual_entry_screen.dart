@@ -66,7 +66,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Stand number (optional)',
                   hintText: 'e.g. Stand 1234',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.tag_outlined),
                 ),
               ),
               const SizedBox(height: 16),
@@ -75,7 +75,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Area / suburb',
                   hintText: 'e.g. Budiriro, Harare',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.location_city_outlined),
                 ),
                 validator: (v) {
                   if ((v ?? '').trim().isEmpty &&
@@ -91,7 +91,7 @@ class _ManualEntryScreenState extends State<ManualEntryScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Seller / cooperative name',
                   hintText: 'e.g. XYZ Housing Cooperative',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline),
                 ),
               ),
               const SizedBox(height: 28),

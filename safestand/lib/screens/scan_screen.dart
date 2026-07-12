@@ -174,7 +174,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Area / suburb (optional, improves the check)',
                   hintText: 'e.g. Budiriro, Harare',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.location_city_outlined),
                 ),
               ),
               const SizedBox(height: 20),

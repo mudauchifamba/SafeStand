@@ -9,6 +9,7 @@ import '../services/photo_evidence_service.dart';
 import '../services/pin_parser.dart';
 import '../services/remote_check_service.dart';
 import '../services/risk_scorer.dart';
+import '../widgets/ai_scan_overlay.dart';
 import '../widgets/satellite_view.dart';
 import 'result_screen.dart';
 
@@ -72,6 +73,21 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     return null;
   }
 
+  /// Whether _land belongs to the point we would currently analyse (guards
+  /// against a stale AI result being applied after the user edits the pin).
+  bool get _landIsCurrent {
+    final target = _analysisTarget;
+    return _land != null &&
+        target != null &&
+        _landTargetKey == '${target.$1},${target.$2}';
+  }
+
+  ScanState get _pinScanState {
+    if (_analyzing) return ScanState.scanning;
+    if (!_landIsCurrent) return ScanState.idle;
+    return _land!.available ? ScanState.success : ScanState.error;
+  }
+
   Future<void> _analyzeLand() async {
     final target = _analysisTarget;
     if (target == null) return;
@@ -115,12 +131,6 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
         .toList();
 
     final pin = _pin;
-    // Only feed the AI result in if it belongs to the point we're checking.
-    final target = _analysisTarget;
-    final landIsCurrent = _land != null &&
-        target != null &&
-        _landTargetKey == '${target.$1},${target.$2}';
-
     final verdict = RemoteCheckService(scorer: widget.scorer).evaluate(
       claimedArea: area,
       seller: _sellerController.text,
@@ -128,7 +138,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
       pinLat: pin?.$1,
       pinLon: pin?.$2,
       claimedPlace: _claimedPlace,
-      landContext: landIsCurrent ? _land : null,
+      landContext: _landIsCurrent ? _land : null,
     );
 
     Navigator.of(context).push(MaterialPageRoute(
@@ -175,22 +185,45 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     }
 
     final land = _land;
+    final risky = land != null &&
+        land.available &&
+        (land.landClass == LandClass.waterOrWetland ||
+            land.landClass == LandClass.builtUpDense);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OutlinedButton.icon(
-          onPressed: _analyzing ? null : _analyzeLand,
-          icon: _analyzing
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.auto_awesome_outlined),
-          label: Text(_analyzing
-              ? 'Analysing satellite image…'
-              : land == null
-                  ? 'Analyse this location with AI'
-                  : 'Re-analyse with AI'),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: _analyzing
+                ? null
+                : LinearGradient(colors: [
+                    kAiAccent.withValues(alpha: 0.16),
+                    kAiAccent.withValues(alpha: 0.04),
+                  ]),
+          ),
+          child: OutlinedButton.icon(
+            onPressed: _analyzing ? null : _analyzeLand,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: kAiAccent.withValues(alpha: 0.7)),
+              foregroundColor: kAiAccent,
+            ),
+            icon: _analyzing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(kAiAccent)),
+                  )
+                : const Icon(Icons.auto_awesome_outlined),
+            label: Text(_analyzing
+                ? 'Analysing satellite image…'
+                : land == null
+                    ? 'Analyse this location with AI'
+                    : 'Re-analyse with AI'),
+          ),
         ),
         if (land != null) ...[
           const SizedBox(height: 12),
@@ -203,18 +236,22 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: land.landClass == LandClass.waterOrWetland ||
-                        land.landClass == LandClass.builtUpDense
+                color: risky
                     ? Theme.of(context).colorScheme.errorContainer
-                    : Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+                    : kAiAccent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: risky
+                        ? Colors.transparent
+                        : kAiAccent.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.auto_awesome, size: 18),
+                      Icon(Icons.auto_awesome,
+                          size: 18, color: risky ? null : kAiAccent),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text('AI reading: ${land.landClass.label}',
@@ -269,7 +306,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
               decoration: const InputDecoration(
                 labelText: 'Claimed area / suburb',
                 hintText: 'e.g. Glen View, Harare',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.location_city_outlined),
               ),
             ),
             const SizedBox(height: 16),
@@ -277,7 +314,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
               controller: _sellerController,
               decoration: const InputDecoration(
                 labelText: 'Seller / cooperative name (optional)',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline),
               ),
             ),
             const SizedBox(height: 16),
@@ -287,13 +324,13 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
               decoration: InputDecoration(
                 labelText: 'Seller\'s location pin (optional)',
                 hintText: '-17.9123, 30.9876 or a Google Maps link',
+                prefixIcon: const Icon(Icons.pin_drop_outlined),
                 helperText: PinParser.isShortLink(_pinController.text)
                     ? 'Short links can\'t be read here — open it in Maps, '
                         'copy the coordinates, and paste them instead.'
                     : 'Ask the seller to share the stand\'s location pin on '
                         'WhatsApp, then paste it here.',
                 helperMaxLines: 3,
-                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
@@ -361,6 +398,7 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                 lat: _pin!.$1,
                 lon: _pin!.$2,
                 zoom: 17,
+                scanState: _pinScanState,
                 caption: 'This is the exact spot the seller pinned as your '
                     'stand. Does it match what they described — vacant land, '
                     'or something else?',
