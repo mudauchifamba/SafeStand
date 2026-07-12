@@ -90,7 +90,15 @@ flutter test          # run the scorer unit tests
 
 ## Team
 
-_(add names + roles — 2 to 5 Zimbabwean citizens, per challenge rules)_
+| Member | Role |
+|---|---|
+| **Jimiel Chifamba** | Team Lead — originator of the idea; design & development |
+| **Mthusi Mudau** | Design & development |
+
+## Business & deployment
+
+- [Business model summary](docs/business_model.md) — who it's for, who pays, unit economics, honest assumptions
+- [Deployment plan](docs/deployment_plan.md) — hosting, operator, pilot sites, support, monitoring, scale pathway
 
 ## Status
 
