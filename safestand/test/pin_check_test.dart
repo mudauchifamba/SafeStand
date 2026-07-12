@@ -21,6 +21,12 @@ void main() {
       expect(PinParser.parse('geo:-17.9123,30.9876'), (-17.9123, 30.9876));
     });
 
+    test('parses comma-decimal coordinates (common phone locales)', () {
+      expect(PinParser.parse('-17,908532, 30,810459'),
+          (-17.908532, 30.810459));
+      expect(PinParser.parse('-17,795 31,010'), (-17.795, 31.010));
+    });
+
     test('rejects junk and out-of-range values', () {
       expect(PinParser.parse('Glen View'), isNull);
       expect(PinParser.parse(''), isNull);
