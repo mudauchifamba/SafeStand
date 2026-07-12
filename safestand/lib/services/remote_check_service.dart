@@ -208,9 +208,11 @@ class RemoteCheckService {
       }
     }
 
-    // --- AI photo-content analysis (online) ------------------------------
-    // Metadata can be stripped; pixels cannot. The vision model judges the
-    // seller's photos directly: recycled/fake tells and satellite mismatch.
+    // --- AI photo-content analysis (online, BLIND) -----------------------
+    // Metadata can be stripped; pixels cannot. The photo model testifies
+    // without ever seeing the satellite imagery; the satellite model never
+    // sees the photos. The cross-examination below is deterministic app
+    // code comparing the two independent testimonies.
     if (photoContent != null && photoContent.available) {
       switch (photoContent.authenticity) {
         case 'strong_concerns':
@@ -233,23 +235,30 @@ class RemoteCheckService {
         default:
           break;
       }
-      if (photoContent.satelliteConsistency == 'inconsistent') {
-        score += photoInconsistentPoints;
-        reasons.add(VerdictReason(
-          'AI photo check: photos do not match the pinned location',
-          '${photoContent.consistencyReasons} The ground in the photos '
-              'does not look like the satellite view of the spot the seller '
-              'pinned — the photos may show a different piece of land.',
-          3,
-        ));
-      } else if (photoContent.satelliteConsistency == 'consistent' &&
-          photoContent.authenticity == 'ok') {
-        reasons.add(VerdictReason(
-          'AI photo check: photos are plausible for the pinned location',
-          '${photoContent.photosShow} This is a weak signal — consistent '
-              'photos do not prove the seller owns the land.',
-          0,
-        ));
+
+      // Cross-examination: photo terrain vs satellite land class.
+      if (landContext != null && landContext.available) {
+        final p = photoContent.terrainClass;
+        final s = landContext.landClass;
+        if (_terrainContradicts(p, s)) {
+          score += photoInconsistentPoints;
+          reasons.add(VerdictReason(
+            'AI cross-check: photos do not match the satellite view',
+            'Judged independently, the photos show '
+                '"${p.label.toLowerCase()}" but the satellite view of the '
+                'pinned spot shows "${s.label.toLowerCase()}". The photos '
+                'may show a different piece of land than the one pinned.',
+            3,
+          ));
+        } else if (p == s && p != LandClass.unknown) {
+          reasons.add(VerdictReason(
+            'AI cross-check: photos agree with the satellite view',
+            'Both independent AI readings saw '
+                '"${p.label.toLowerCase()}". A weak signal — agreement does '
+                'not prove the seller owns the land.',
+            0,
+          ));
+        }
       }
     }
 
@@ -347,6 +356,26 @@ class RemoteCheckService {
         ...scorer.nextSteps,
       ],
     );
+  }
+
+  /// Conservative compatibility table for the photo-vs-satellite
+  /// cross-examination. Only clear physical contradictions flag:
+  /// dense build-up cannot pass for open land or water, and open water
+  /// cannot pass for a built-up area. Bare land, vegetation and scattered
+  /// structures are all mutually plausible (seasons, camera angle, and
+  /// imagery age explain those differences innocently).
+  static bool _terrainContradicts(LandClass photo, LandClass satellite) {
+    if (photo == LandClass.unknown || satellite == LandClass.unknown) {
+      return false;
+    }
+    bool pairIs(LandClass x, LandClass y, LandClass a, LandClass b) =>
+        (x == a && y == b) || (x == b && y == a);
+    return pairIs(photo, satellite, LandClass.builtUpDense, LandClass.bareLand) ||
+        pairIs(photo, satellite, LandClass.builtUpDense, LandClass.vegetation) ||
+        pairIs(photo, satellite, LandClass.builtUpDense,
+            LandClass.waterOrWetland) ||
+        pairIs(photo, satellite, LandClass.builtUpScattered,
+            LandClass.waterOrWetland);
   }
 
   RiskBand bandFor(int score) {

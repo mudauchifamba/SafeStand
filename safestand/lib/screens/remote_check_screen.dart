@@ -142,12 +142,11 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     final landFuture = target != null
         ? _landService.analyze(target.$1, target.$2)
         : Future<LandContext?>.value(null);
+    // Blind by design: the photo model never sees the satellite or pin.
     final photosFuture = _photos.isNotEmpty
         ? _landService.analyzePhotos(
             photoPaths: _photos.map((p) => p.path).toList(),
             claim: claim.isEmpty ? 'a residential stand' : claim,
-            lat: _pin?.$1,
-            lon: _pin?.$2,
           )
         : Future<PhotoContentAnalysis?>.value(null);
 
@@ -373,17 +372,14 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
         style: TextStyle(color: Theme.of(context).colorScheme.error),
       );
     }
-    final bad = p.authenticity != 'ok' ||
-        p.satelliteConsistency == 'inconsistent';
+    final bad = p.authenticity != 'ok';
     final headline = p.authenticity == 'strong_concerns'
         ? 'Photos show strong signs of being fake or recycled'
         : p.authenticity == 'suspicious'
             ? 'Photos look suspicious'
-            : p.satelliteConsistency == 'inconsistent'
-                ? 'Photos do not match the pinned location'
-                : p.satelliteConsistency == 'consistent'
-                    ? 'Photos are plausible for this location'
-                    : 'Photos analysed';
+            : p.terrainClass != LandClass.unknown
+                ? 'Photos show: ${p.terrainClass.label.toLowerCase()}'
+                : 'Photos analysed';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -417,7 +413,8 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
           Text([
             if (p.photosShow.isNotEmpty) p.photosShow,
             if (p.authenticityReasons.isNotEmpty) p.authenticityReasons,
-            if (p.consistencyReasons.isNotEmpty) p.consistencyReasons,
+            'Compared against the satellite reading when you tap '
+                '"Check this deal".',
           ].join(' ')),
         ],
       ),

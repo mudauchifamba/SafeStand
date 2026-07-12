@@ -66,18 +66,20 @@ void main() {
     });
   });
 
-  group('AI photo-content scoring', () {
+  group('AI photo-content scoring (blind cross-examination)', () {
     PhotoContentAnalysis pca({
       String auth = 'ok',
-      String consistency = 'unclear',
+      LandClass terrain = LandClass.unknown,
     }) =>
         PhotoContentAnalysis(
           photosShow: 'a bare stand.',
+          terrainClass: terrain,
           authenticity: auth,
           authenticityReasons: 'test reason.',
-          satelliteConsistency: consistency,
-          consistencyReasons: 'test reason.',
         );
+
+    LandContext sat(LandClass c) => LandContext(
+        landClass: c, confidence: 'high', description: 'sat reading.');
 
     test('strong fake concerns raise risk hard', () {
       final v = remote().evaluate(
@@ -89,38 +91,68 @@ void main() {
       expect(v.reasons.any((r) => r.label.contains('not genuine')), isTrue);
     });
 
-    test('satellite-inconsistent photos raise risk', () {
+    test('cross-check: photos show dense build-up, satellite shows bare '
+        'land -> contradiction', () {
       final v = remote().evaluate(
         claimedArea: 'Glen View',
         photoResults: [],
-        photoContent: pca(consistency: 'inconsistent'),
+        photoContent: pca(terrain: LandClass.builtUpDense),
+        landContext: sat(LandClass.bareLand),
       );
       expect(v.score, RemoteCheckService.photoInconsistentPoints);
+      expect(v.reasons.any((r) => r.label.contains('cross-check')), isTrue);
       expect(v.reasons.any((r) => r.label.contains('do not match')), isTrue);
     });
 
-    test('suspicious + inconsistent stack', () {
+    test('cross-check: bare land photos vs vegetation satellite are '
+        'innocently compatible (no flag)', () {
       final v = remote().evaluate(
         claimedArea: 'Glen View',
         photoResults: [],
-        photoContent: pca(auth: 'suspicious', consistency: 'inconsistent'),
+        photoContent: pca(terrain: LandClass.bareLand),
+        landContext: sat(LandClass.vegetation),
+      );
+      expect(v.score, 0);
+      expect(v.reasons.any((r) => r.label.contains('do not match')), isFalse);
+    });
+
+    test('cross-check: matching classes add only a zero-weight agreement '
+        'note', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent: pca(terrain: LandClass.bareLand),
+        landContext: sat(LandClass.bareLand),
+      );
+      expect(v.score, 0);
+      final note = v.reasons.firstWhere((r) => r.label.contains('agree'));
+      expect(note.weight, 0);
+    });
+
+    test('cross-check skipped when photo terrain is unknown', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent: pca(terrain: LandClass.unknown),
+        landContext: sat(LandClass.builtUpDense),
+      );
+      // dense built-up satellite alone adds its own flag; no cross-check
+      expect(v.reasons.any((r) => r.label.contains('cross-check')), isFalse);
+    });
+
+    test('suspicious photos + contradiction stack', () {
+      final v = remote().evaluate(
+        claimedArea: 'Glen View',
+        photoResults: [],
+        photoContent:
+            pca(auth: 'suspicious', terrain: LandClass.waterOrWetland),
+        landContext: sat(LandClass.builtUpDense),
       );
       expect(
           v.score,
           RemoteCheckService.photoFakeSuspiciousPoints +
-              RemoteCheckService.photoInconsistentPoints);
-    });
-
-    test('clean consistent photos add only a zero-weight note', () {
-      final v = remote().evaluate(
-        claimedArea: 'Glen View',
-        photoResults: [],
-        photoContent: pca(consistency: 'consistent'),
-      );
-      expect(v.score, 0);
-      final note =
-          v.reasons.firstWhere((r) => r.label.contains('plausible'));
-      expect(note.weight, 0);
+              RemoteCheckService.photoInconsistentPoints +
+              RemoteCheckService.denseBuiltUpPoints);
     });
 
     test('unavailable analysis is ignored', () {

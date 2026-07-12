@@ -63,35 +63,33 @@ class LandContext {
       );
 }
 
-/// AI judgment on the seller's photos themselves. Metadata can be stripped
-/// in transit; pixels cannot. The model judges what the photos show, whether
-/// they look recycled/fake (screenshots, watermarks, renders), and whether
-/// they plausibly match the satellite context at the pinned location.
+/// AI judgment on the seller's photos themselves — deliberately BLIND: the
+/// model never sees the satellite imagery or the pin, so its testimony about
+/// the photos is independent. The app (not a model) then cross-examines this
+/// against the separate satellite reading. Metadata can be stripped in
+/// transit; pixels cannot.
 class PhotoContentAnalysis {
   final String photosShow; // plain-language: what the photos depict
+  final LandClass terrainClass; // terrain visible in the photos
   final String authenticity; // ok | suspicious | strong_concerns
   final String authenticityReasons;
-  final String satelliteConsistency; // consistent | unclear | inconsistent
-  final String consistencyReasons;
   final bool available;
   final String? error;
 
   PhotoContentAnalysis({
     required this.photosShow,
+    required this.terrainClass,
     required this.authenticity,
     required this.authenticityReasons,
-    required this.satelliteConsistency,
-    required this.consistencyReasons,
     this.available = true,
     this.error,
   });
 
   factory PhotoContentAnalysis.unavailable(String why) => PhotoContentAnalysis(
         photosShow: '',
+        terrainClass: LandClass.unknown,
         authenticity: 'ok',
         authenticityReasons: '',
-        satelliteConsistency: 'unclear',
-        consistencyReasons: '',
         available: false,
         error: why,
       );
@@ -221,31 +219,27 @@ class LandContextService {
   static const _photoPrompt =
       'You are helping someone abroad decide whether a land deal in Zimbabwe '
       'is real. The seller\'s claim: "{claim}". '
-      'The FIRST {n} image(s) are photos the seller sent, claiming they show '
-      'the stand being sold.{satNote} '
-      'Judge three things. (1) What do the seller\'s photos actually show? '
-      '(2) Authenticity: signs of recycled or fake photos - phone/app UI '
+      'The {n} image(s) are photos the seller sent, claiming they show the '
+      'stand being sold. Judge three things from the photos ALONE. '
+      '(1) What do they actually show - one short sentence. '
+      '(2) The DOMINANT terrain/setting visible: built_up_dense, '
+      'built_up_scattered, bare_land, vegetation, water_or_wetland - or '
+      'unknown if no outdoor terrain is visible. '
+      '(3) Authenticity: signs of recycled or fake photos - phone/app UI '
       'bars (screenshots), watermarks or listing-site logos, architectural '
       'renders, terrain or architecture implausible for Zimbabwe. '
-      '(3) If satellite images are provided: could the photos plausibly have '
-      'been taken at that location - compare terrain, vegetation, slope, and '
-      'surrounding building density. Be conservative: "inconsistent" only '
-      'for clear contradictions. Reply ONLY with compact JSON: '
+      'Reply ONLY with compact JSON: '
       '{"photos_show":"one short sentence",'
+      '"terrain_class":"<one of the above or unknown>",'
       '"authenticity":"ok|suspicious|strong_concerns",'
-      '"authenticity_reasons":"short sentence, empty if ok",'
-      '"satellite_consistency":"consistent|unclear|inconsistent",'
-      '"consistency_reasons":"short sentence"}.';
+      '"authenticity_reasons":"short sentence, empty if ok"}.';
 
-  /// Analyse up to 3 seller photos, optionally against the satellite view of
-  /// the pinned location. One API call: photos first, then close + wide
-  /// satellite tiles (Groq allows 5 images per request).
+  /// Analyse up to 3 seller photos BLIND — no satellite imagery attached,
+  /// so this testimony is independent of the satellite reading and the app
+  /// can cross-examine the two afterwards.
   Future<PhotoContentAnalysis> analyzePhotos({
     required List<String> photoPaths,
     required String claim,
-    double? lat,
-    double? lon,
-    int zoom = 17,
   }) async {
     if (!Config.hasGroqKey) {
       return PhotoContentAnalysis.unavailable('no_api_key');
@@ -265,36 +259,9 @@ class LandContextService {
         });
       }
 
-      var hasSat = false;
-      if (lat != null && lon != null) {
-        for (final z in [zoom, zoom - 3]) {
-          final r = await _client
-              .get(Uri.parse(tileUrl(lat, lon, z)))
-              .timeout(const Duration(seconds: 20));
-          if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) {
-            hasSat = true;
-            images.add({
-              'type': 'image_url',
-              'image_url': {
-                'url':
-                    'data:${r.headers['content-type'] ?? 'image/jpeg'};base64,'
-                        '${base64Encode(r.bodyBytes)}'
-              }
-            });
-          }
-        }
-      }
-
       final prompt = _photoPrompt
           .replaceAll('{claim}', claim)
-          .replaceAll('{n}', '${paths.length}')
-          .replaceAll(
-              '{satNote}',
-              hasSat
-                  ? ' The LAST two images are satellite views of the pinned '
-                      'location (close-up ~150 m, then zoomed out ~1.2 km).'
-                  : ' No satellite view is available; skip the location '
-                      'comparison and mark it "unclear".');
+          .replaceAll('{n}', '${paths.length}');
 
       final url =
           Uri.parse('https://api.groq.com/openai/v1/chat/completions');
@@ -340,12 +307,10 @@ class LandContextService {
 
       return PhotoContentAnalysis(
         photosShow: j['photos_show']?.toString() ?? '',
+        terrainClass: _classFrom(j['terrain_class']?.toString() ?? ''),
         authenticity: pick('authenticity',
             {'ok', 'suspicious', 'strong_concerns'}, 'ok'),
         authenticityReasons: j['authenticity_reasons']?.toString() ?? '',
-        satelliteConsistency: pick('satellite_consistency',
-            {'consistent', 'unclear', 'inconsistent'}, 'unclear'),
-        consistencyReasons: j['consistency_reasons']?.toString() ?? '',
       );
     } catch (e) {
       return PhotoContentAnalysis.unavailable('exception');
