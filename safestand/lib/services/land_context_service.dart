@@ -40,6 +40,7 @@ class LandContext {
   final LandClass landClass;
   final String confidence; // high | medium | low
   final String description; // model's plain-language note
+  final String wetlandSigns; // none | possible | strong
   final bool available; // false when no key / offline / call failed
   final String? error;
 
@@ -47,6 +48,7 @@ class LandContext {
     required this.landClass,
     required this.confidence,
     required this.description,
+    this.wetlandSigns = 'none',
     this.available = true,
     this.error,
   });
@@ -74,8 +76,15 @@ class LandContextService {
       'residential stand there. Classify the DOMINANT land cover in the '
       'centre of the image into exactly one of: built_up_dense, '
       'built_up_scattered, bare_land, vegetation, water_or_wetland. '
+      'ALSO check for SEASONAL WETLAND (vlei) indicators - in Harare these '
+      'are grassy areas that look dry and buildable but flood seasonally '
+      'and get houses demolished. Indicators: visible water, marsh or reed '
+      'texture (strong); a dark meandering drainage channel; an undeveloped '
+      'green/grass corridor cutting through otherwise built-up land; land '
+      'noticeably darker or greener than its surroundings (possible). '
       'Reply ONLY with compact JSON: '
       '{"class":"<one of the above>","confidence":"high|medium|low",'
+      '"wetland_signs":"none|possible|strong",'
       '"description":"one short sentence a home-buyer would understand"}.';
 
   /// Esri World Imagery tile URL for a coordinate at [zoom].
@@ -189,10 +198,14 @@ class LandContextService {
     if (match == null) return LandContext.unavailable('unparseable');
     try {
       final j = jsonDecode(match.group(0)!) as Map<String, dynamic>;
+      final signs = (j['wetland_signs']?.toString() ?? 'none').toLowerCase();
       return LandContext(
         landClass: _classFrom(j['class']?.toString() ?? ''),
         confidence: (j['confidence']?.toString() ?? 'low').toLowerCase(),
         description: j['description']?.toString() ?? '',
+        wetlandSigns: const {'possible', 'strong'}.contains(signs)
+            ? signs
+            : 'none',
       );
     } catch (_) {
       return LandContext.unavailable('unparseable');
