@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "description": "Documented wetlands and vleis in greater Harare where residential construction is restricted or a documented demolition risk. Boundaries are INDICATIVE circles compiled from public documentation (Ramsar listings, EMA statements, Harare wetland survey reporting) - NOT survey-grade. Every hit tells the user to verify with the Environmental Management Agency (EMA).",
+    "disclaimer": "A pin outside these circles does NOT mean the land is not a wetland. Harare has over 20 mapped wetland systems; this seed list covers the most documented ones and grows with use.",
+    "version": "0.1.0"
+  },
+  "wetlands": [
+    {
+      "name": "Monavale Vlei",
+      "lat": -17.795, "lon": 31.010, "radius_km": 1.2,
+      "designation": "Ramsar-listed urban wetland",
+      "source": "Ramsar site listing; COSMO / BirdLife Zimbabwe documentation"
+    },
+    {
+      "name": "Marlborough Vlei",
+      "lat": -17.768, "lon": 30.985, "radius_km": 1.5,
+      "designation": "Documented vlei (upper Gwebi headwaters)",
+      "source": "Harare wetlands survey; public EMA reporting"
+    },
+    {
+      "name": "Borrowdale Vlei",
+      "lat": -17.735, "lon": 31.090, "radius_km": 1.3,
+      "designation": "Documented urban wetland",
+      "source": "Harare wetlands survey; public reporting on construction disputes"
+    },
+    {
+      "name": "Belvedere North Vlei",
+      "lat": -17.838, "lon": 31.008, "radius_km": 0.9,
+      "designation": "Documented urban wetland",
+      "source": "Harare wetlands survey; public EMA reporting"
+    },
+    {
+      "name": "Budiriro / Marimba headwaters",
+      "lat": -17.925, "lon": 30.925, "radius_km": 2.0,
+      "designation": "Wetland area with documented demolitions of stands sold on it",
+      "source": "Public reporting on Budiriro wetland stands and demolitions"
+    },
+    {
+      "name": "Crowborough / Marimba corridor",
+      "lat": -17.855, "lon": 30.905, "radius_km": 1.5,
+      "designation": "Documented stream-corridor wetland (Kuwadzana side)",
+      "source": "Harare wetlands survey; public reporting"
+    },
+    {
+      "name": "Retreat / Manyame floodplain",
+      "lat": -17.958, "lon": 31.028, "radius_km": 1.8,
+      "designation": "Floodplain / wetland with documented illegal stand sales",
+      "source": "Public reporting on Retreat demolitions, March 2025"
+    },
+    {
+      "name": "Hopley / Mukuvisi headwaters",
+      "lat": -17.932, "lon": 31.020, "radius_km": 1.5,
+      "designation": "Wetland-adjacent settlement with documented illegal sales",
+      "source": "ZACC statements; public reporting on Hopley"
+    },
+    {
+      "name": "Epworth wetlands",
+      "lat": -17.900, "lon": 31.155, "radius_km": 1.8,
+      "designation": "Documented wetland system under settlement pressure",
+      "source": "Public EMA reporting on Epworth wetlands"
+    },
+    {
+      "name": "Mukuvisi Woodlands wetland",
+      "lat": -17.845, "lon": 31.100, "radius_km": 1.0,
+      "designation": "Protected woodland / wetland reserve",
+      "source": "Mukuvisi Woodlands Trust; public documentation"
+    },
+    {
+      "name": "Dzivarasekwa Vlei",
+      "lat": -17.790, "lon": 30.895, "radius_km": 1.2,
+      "designation": "Documented vlei under settlement pressure",
+      "source": "Harare wetlands survey; public reporting"
+    },
+    {
+      "name": "Greendale / Chishawasha stream vlei",
+      "lat": -17.815, "lon": 31.115, "radius_km": 1.0,
+      "designation": "Documented stream-corridor wetland",
+      "source": "Harare wetlands survey; public reporting"
+    }
+  ]
+}
