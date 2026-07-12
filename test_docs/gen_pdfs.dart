@@ -1,14 +1,17 @@
 // Generates the 10 SafeStand OCR test-specimen PDFs without any packages,
 // by emitting minimal single-page PDF files (Helvetica, A4) by hand.
 //
-// Every document carries a SYNTHETIC STAMP:
-//  - Genuine docs (G1-G5) share ONE consistent official design: purple-blue
-//    ink, double rectangular border, office name + "OFFICIAL DATE STAMP" +
-//    date + file reference, slight -8 degree tilt.
+// Every document carries a SYNTHETIC STAMP, following the same convention as
+// the reference specimens in safestand/assets/specimens (green circular
+// seals on genuine documents; the reliable tell is CONTENT - a date and a
+// traceable file reference - not colour or shape):
+//  - Genuine docs (G1-G5) share ONE consistent official design: dark-green
+//    ink, double circular seal, office name around the rim, date + file
+//    reference in the centre.
 //  - Fake docs (F1-F5) drift from that design progressively:
-//      F1 slightly off  - right shape/ink, but no date and no reference
-//      F2 mildly off    - green ink, single border, "APPROVED", no date
-//      F3 moderately    - red CIRCLE stamp, misspelled "OFICIAL", no ref
+//      F1 slightly off  - right shape and green ink, but NO date and NO ref
+//      F2 mildly off    - green ink but a rectangle, "APPROVED", no date
+//      F3 moderately    - red circle, misspelled "OFICIAL", no reference
 //      F4 very off      - thick bright-red box, just "APPROVED", marketing
 //      F5 massively off - orange double box "RESERVED!!!" / "PAY TODAY"
 import 'dart:io';
@@ -21,12 +24,14 @@ class StampLine {
 }
 
 class Stamp {
-  final List<StampLine> lines;
+  final List<StampLine> lines; // centre lines
   final double r, g, b; // ink colour
-  final String shape; // 'rect' or 'circle'
+  final String shape; // 'rect', 'circle' or 'seal'
+  final String rimTop; // seal only: text around the upper rim
+  final String rimBottom; // seal only: text around the lower rim
   final bool doubleBorder;
   final double borderWidth;
-  final double w, h; // rect size (circle uses w as diameter)
+  final double w, h; // rect size (circle/seal use w as diameter)
   final double angleDeg;
   final double cx, cy; // centre position on page
 
@@ -36,6 +41,8 @@ class Stamp {
     required this.g,
     required this.b,
     this.shape = 'rect',
+    this.rimTop = '',
+    this.rimBottom = '',
     this.doubleBorder = true,
     this.borderWidth = 1.8,
     this.w = 208,
@@ -46,19 +53,30 @@ class Stamp {
   });
 }
 
-/// The one consistent official design used by every genuine document.
-Stamp officialStamp(List<String> lines, {double cx = 420, double cy = 165}) {
-  assert(lines.length == 4, 'official stamp is office/label/date/ref');
+/// The one consistent official design used by every genuine document —
+/// matching the assets/specimens convention: dark-green double circular
+/// seal, office around the rim, date + traceable reference in the centre.
+Stamp officialSeal({
+  required String rimTop,
+  required String rimBottom,
+  required String date,
+  required String ref,
+  double cx = 430,
+  double cy = 168,
+}) {
   return Stamp(
     lines: [
-      StampLine(lines[0], 10),
-      StampLine(lines[1], 8),
-      StampLine(lines[2], 11),
-      StampLine(lines[3], 8),
+      StampLine(date, 10),
+      StampLine(ref, 7.5),
     ],
-    r: 0.28,
-    g: 0.20,
-    b: 0.62, // purple-blue office ink
+    r: 0.13,
+    g: 0.42,
+    b: 0.25, // official green ink
+    shape: 'seal',
+    rimTop: rimTop,
+    rimBottom: rimBottom,
+    w: 124, // diameter
+    angleDeg: -6,
     cx: cx,
     cy: cy,
   );
@@ -90,12 +108,12 @@ final docs = <Doc>[
       '______________________',
       'REGISTRAR OF DEEDS',
     ],
-    officialStamp([
-      'REGISTRAR OF DEEDS - HARARE',
-      'OFFICIAL DATE STAMP',
-      '02 APR 2026',
-      'REF: DT 4821/2026',
-    ]),
+    officialSeal(
+      rimTop: 'REGISTRAR OF DEEDS',
+      rimBottom: 'HARARE',
+      date: '02 APR 2026',
+      ref: 'REF: DT 4821/2026',
+    ),
   ),
   Doc(
     'G2_council_offer_letter_kuwadzana',
@@ -111,12 +129,12 @@ final docs = <Doc>[
       '______________________',
       'DIRECTOR OF HOUSING, for the Town Clerk',
     ],
-    officialStamp([
-      'CITY OF HARARE',
-      'HOUSING & COMMUNITY SERVICES',
-      '26 FEB 2026',
-      'REF: CH/HD/KWD/0662/26',
-    ]),
+    officialSeal(
+      rimTop: 'CITY OF HARARE',
+      rimBottom: 'HOUSING & COMM SERVICES',
+      date: '26 FEB 2026',
+      ref: 'CH/HD/KWD/0662/26',
+    ),
   ),
   Doc(
     'G3_agreement_of_sale_marlborough',
@@ -132,12 +150,12 @@ final docs = <Doc>[
       'Signed at Harare this 8th day of June 2026 before two witnesses.',
       'SELLER ______________   PURCHASER ______________   CONVEYANCER ______________',
     ],
-    officialStamp([
-      'CHIRWA & ASSOCIATES',
-      'LEGAL PRACTITIONERS - OFFICIAL DATE STAMP',
-      '08 JUN 2026',
-      'REF: CH/RC/088/26',
-    ]),
+    officialSeal(
+      rimTop: 'CHIRWA & ASSOCIATES',
+      rimBottom: 'LEGAL PRACTITIONERS',
+      date: '08 JUN 2026',
+      ref: 'REF: CH/RC/088/26',
+    ),
   ),
   Doc(
     'G4_registered_coop_cession',
@@ -153,12 +171,12 @@ final docs = <Doc>[
       '______________________',
       'SECRETARY, Takunda Housing Co-operative Society Ltd',
     ],
-    officialStamp([
-      'CITY OF HARARE',
-      'HOUSING & COMMUNITY SERVICES',
-      '11 MAY 2026',
-      'REF: CH/HD/GLEN/0417/25',
-    ]),
+    officialSeal(
+      rimTop: 'CITY OF HARARE',
+      rimBottom: 'HOUSING & COMM SERVICES',
+      date: '11 MAY 2026',
+      ref: 'CH/HD/GLEN/0417/25',
+    ),
   ),
   Doc(
     'G5_deed_of_grant_norton',
@@ -174,12 +192,12 @@ final docs = <Doc>[
       '______________________     ______________________',
       'TOWN SECRETARY              CHAIRPERSON OF COUNCIL',
     ],
-    officialStamp([
-      'NORTON TOWN COUNCIL',
-      'COMMON SEAL - OFFICIAL DATE STAMP',
-      '20 MAY 2026',
-      'REF: NTC/HD/1105/26',
-    ]),
+    officialSeal(
+      rimTop: 'NORTON TOWN COUNCIL',
+      rimBottom: 'COMMON SEAL',
+      date: '20 MAY 2026',
+      ref: 'REF: NTC/HD/1105/26',
+    ),
   ),
   Doc(
     'F1_coop_offer_letter_cash_only',
@@ -195,17 +213,22 @@ final docs = <Doc>[
       '______________________',
       'CHAIRMAN, Tashinga Vision Housing Co-operative',
     ],
-    // Slightly off: right shape and near-right ink, but NO date and NO ref.
+    // Slightly off: right shape (green circular seal!) but NO date, NO ref.
     const Stamp(
       lines: [
-        StampLine('TASHINGA VISION HOUSING', 10),
-        StampLine('CO-OPERATIVE', 9),
-        StampLine('OFFICIAL STAMP', 11),
+        StampLine('OFFICIAL', 10),
+        StampLine('STAMP', 10),
       ],
-      r: 0.30,
-      g: 0.18,
-      b: 0.58,
-      angleDeg: -8,
+      r: 0.15,
+      g: 0.44,
+      b: 0.26,
+      shape: 'seal',
+      rimTop: 'TASHINGA VISION HOUSING',
+      rimBottom: 'CO-OPERATIVE',
+      w: 124,
+      angleDeg: -6,
+      cx: 430,
+      cy: 168,
     ),
   ),
   Doc(
@@ -364,7 +387,16 @@ String drawStamp(Stamp s) {
   c.writeln('${fmt(s.r)} ${fmt(s.g)} ${fmt(s.b)} RG');
   c.writeln('${fmt(s.r)} ${fmt(s.g)} ${fmt(s.b)} rg');
 
-  if (s.shape == 'circle') {
+  if (s.shape == 'seal') {
+    final radius = s.w / 2;
+    c.writeln('${fmt(s.borderWidth)} w');
+    c.write(_circle(radius));
+    c.writeln('0.9 w');
+    c.write(_circle(radius - 11));
+    // Rim text sits between the two circles.
+    c.write(_arcText(s.rimTop, radius - 8, top: true));
+    c.write(_arcText(s.rimBottom, radius - 8, top: false));
+  } else if (s.shape == 'circle') {
     final radius = s.w / 2;
     c.writeln('${fmt(s.borderWidth)} w');
     c.write(_circle(radius));
@@ -391,6 +423,40 @@ String drawStamp(Stamp s) {
   }
 
   c.writeln('Q');
+  return c.toString();
+}
+
+/// Text curved along a circle rim: each character gets its own rotation
+/// matrix. Top text reads left-to-right across the upper arc; bottom text
+/// reads left-to-right across the lower arc with glyph tops facing the
+/// centre (standard seal typography).
+String _arcText(String text, double radius, {required bool top}) {
+  if (text.isEmpty) return '';
+  const size = 6.5;
+  final c = StringBuffer();
+  final charAngle = (size * 0.62) / radius; // radians per character cell
+  final total = charAngle * (text.length - 1);
+
+  for (var i = 0; i < text.length; i++) {
+    final ch = text[i];
+    if (ch == ' ') continue;
+    // Top: sweep left->right means angle decreasing from 90+span/2.
+    // Bottom: sweep left->right means angle increasing from 270-span/2.
+    final theta = top
+        ? (math.pi / 2) + total / 2 - charAngle * i
+        : (3 * math.pi / 2) - total / 2 + charAngle * i;
+    final x = radius * math.cos(theta);
+    final y = radius * math.sin(theta);
+    // Glyph rotation: tangent to the circle, upright for the reader.
+    final rot = top ? theta - math.pi / 2 : theta + math.pi / 2;
+    final cosR = math.cos(rot), sinR = math.sin(rot);
+    // Nudge so the glyph is centred on its cell and sits on the rim nicely.
+    final ox = top ? x - size * 0.28 * cosR : x + size * 0.28 * cosR;
+    final oy = top ? y - size * 0.28 * sinR : y + size * 0.28 * sinR;
+    c.writeln('q ${fmt(cosR)} ${fmt(sinR)} ${fmt(-sinR)} ${fmt(cosR)} '
+        '${fmt(ox)} ${fmt(oy)} cm '
+        'BT /F2 $size Tf 0 ${top ? -1.5 : -4.0} Td (${esc(ch)}) Tj ET Q');
+  }
   return c.toString();
 }
 
