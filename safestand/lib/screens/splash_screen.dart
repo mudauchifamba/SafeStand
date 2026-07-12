@@ -129,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Opacity(
                   opacity: textT * 0.6,
                   child: const Text(
-                    'Works offline · A risk signal, not a legal ruling',
+                    'Scans documents offline · A risk signal, not a legal ruling',
                     style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ),

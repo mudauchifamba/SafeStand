@@ -1,6 +1,6 @@
 # SafeStand
 
-**An offline early-warning app that helps Zimbabwean home-seekers spot risky land deals before they pay.**
+**An early-warning app that helps Zimbabwean home-seekers spot risky land deals before they pay — document scanning works fully offline.**
 
 Submitted to the POTRAZ *AI for Impact Challenge 2026* — Development Track.
 
@@ -44,8 +44,12 @@ SafeStand then:
   *why*, and **recommended next steps** pointing to the Deeds Registry, the
   Surveyor-General, and the Registrar of Cooperative Societies.
 
-Everything runs **offline** — important where the buyers most at risk have patchy
-mobile data.
+The document scan — OCR, the trained fraud classifier, and the rule engine —
+runs **fully offline**, important where the buyers most at risk have patchy
+mobile data. The remote stand check is mostly offline too (documented cases,
+wetland layer, photo metadata and pin geometry); only the satellite imagery
+and the AI photo/land analyses need internet — acceptable, since that flow
+serves diaspora buyers who are online by definition.
 
 ## Honest scope & safeguards
 

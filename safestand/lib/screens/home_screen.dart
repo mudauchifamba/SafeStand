@@ -87,8 +87,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 40),
                 Text(
-                  'Works fully offline. Documents never leave your phone.\n'
-                  'A risk signal, not a legal ruling.',
+                  'Document scanning works fully offline — your papers never '
+                  'leave your phone. Satellite and AI photo checks need '
+                  'internet.\nA risk signal, not a legal ruling.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
