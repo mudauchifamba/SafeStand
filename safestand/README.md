@@ -46,6 +46,7 @@ Cooperative Societies, EMA).
 
 ## Demo
 
+- **Video walkthrough:** [youtube.com/shorts/8ZsRPSG9iZY](https://youtube.com/shorts/8ZsRPSG9iZY) — both flows on a live device.
 - Run locally: see **Setup** below (Android device recommended — the OCR needs a camera).
 - Test documents: [`test_docs/`](../test_docs/) contains 10 fictitious specimen PDFs
   (5 genuine-style, 5 fraud-style, all with synthetic stamps) for exercising the scan flow.
