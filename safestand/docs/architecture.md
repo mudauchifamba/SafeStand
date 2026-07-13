@@ -6,6 +6,13 @@ strongest possible privacy posture (no server-side user data exists).
 
 ## Diagram
 
+![SafeStand system architecture](architecture_diagram.png)
+
+Regenerate after architecture changes:
+`flutter test test/tools/diagram_generator_test.dart`
+
+### Text version
+
 ```
                                 USERS
    Local home-seeker (offline-capable)      Diaspora buyer (online)
