@@ -262,10 +262,18 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
     }
 
     final land = _land;
-    final risky = land != null &&
+    // Severity tiers so card colour mirrors scoring weight: red only for the
+    // hard hazard (wetland, +30); amber for the moderate flag (dense build-up,
+    // +12); neutral accent for informational readings.
+    final isHazard = land != null &&
         land.available &&
         (land.landClass == LandClass.waterOrWetland ||
-            land.landClass == LandClass.builtUpDense);
+            land.wetlandSigns == 'strong');
+    final isCaution = !isHazard &&
+        land != null &&
+        land.available &&
+        (land.landClass == LandClass.builtUpDense ||
+            land.wetlandSigns == 'possible');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,12 +323,17 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: risky
+                color: isHazard
                     ? Theme.of(context).colorScheme.errorContainer
-                    : kAiAccent.withValues(alpha: 0.08),
+                    : isCaution
+                        ? Theme.of(context)
+                            .colorScheme
+                            .tertiaryContainer
+                            .withValues(alpha: 0.6)
+                        : kAiAccent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: risky
+                    color: (isHazard || isCaution)
                         ? Colors.transparent
                         : kAiAccent.withValues(alpha: 0.3)),
               ),
@@ -329,8 +342,16 @@ class _RemoteCheckScreenState extends State<RemoteCheckScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.auto_awesome,
-                          size: 18, color: risky ? null : kAiAccent),
+                      Icon(
+                          isHazard
+                              ? Icons.warning_amber_rounded
+                              : Icons.auto_awesome,
+                          size: 18,
+                          color: isHazard
+                              ? Theme.of(context).colorScheme.error
+                              : isCaution
+                                  ? null
+                                  : kAiAccent),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text('AI reading: ${land.landClass.label}',
