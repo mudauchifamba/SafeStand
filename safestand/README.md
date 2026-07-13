@@ -52,7 +52,11 @@ Cooperative Societies, EMA).
 - Satellite/wetland demo pins: `-17.795, 31.010` (inside Monavale Vlei — instant
   offline wetland flag) and any Lake Chivero water coordinate (online AI reads
   water/wetland).
-- Screenshots: [`docs/screenshots/`](docs/screenshots/) *(being added)*.
+- Screenshots: [`docs/screenshots/`](docs/screenshots/) — full walkthrough set.
+
+| Home | Scan verdict | Satellite + AI |
+|---|---|---|
+| ![Home](docs/screenshots/03_home.jpg) | ![Verdict](docs/screenshots/06_verdict_green.jpg) | ![Satellite](docs/screenshots/09_satellite_water.jpg) |
 
 ## Architecture
 
